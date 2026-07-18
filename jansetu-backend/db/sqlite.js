@@ -86,6 +86,11 @@ function getAllComplaints() {
   return stmt.all();
 }
 
+function getComplaintsByPhone(phone) {
+  const stmt = db.prepare(`SELECT * FROM complaints WHERE citizen_phone = ? ORDER BY createdAt DESC`);
+  return stmt.all(phone);
+}
+
 module.exports = {
   db,
   initSQLite,
@@ -94,5 +99,6 @@ module.exports = {
   saveComplaint,
   updateComplaint,
   getRtiDrafts,
-  getAllComplaints
+  getAllComplaints,
+  getComplaintsByPhone
 };

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { runQuery } = require('../db/graph');
-const { getRtiDrafts, getAllComplaints } = require('../db/sqlite');
+const { getRtiDrafts, getAllComplaints, getComplaintsByPhone } = require('../db/sqlite');
 
 // POST /api/dashboard - RPC endpoint for Neo4j proxy operations
 router.post('/', async (req, res) => {
@@ -28,6 +28,22 @@ router.post('/', async (req, res) => {
       complaint.similar_count = similar.length + 1;
       
       return res.json({ success: true, data: complaint });
+    }
+    
+    if (action === 'getUserComplaints') {
+      try {
+        const query = `
+          MATCH (c:Complaint {citizenPhone: $phone})
+          RETURN c ORDER BY c.createdAt DESC
+        `;
+        const result = await runQuery(query, params);
+        const complaints = result.records.map(r => r.get('c').properties);
+        return res.json({ success: true, data: complaints });
+      } catch (err) {
+        console.log('Neo4j getUserComplaints failed, using SQLite fallback');
+        const complaints = getComplaintsByPhone(params.phone);
+        return res.json({ success: true, data: complaints });
+      }
     }
     
     return res.status(400).json({ error: 'Unknown action' });

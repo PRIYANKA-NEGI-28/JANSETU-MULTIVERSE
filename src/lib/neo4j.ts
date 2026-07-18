@@ -126,6 +126,10 @@ export async function getComplaintByNumber(complaintNumber: string): Promise<Neo
   return callProxy<Neo4jComplaint | null>('getComplaintByNumber', { complaint_number: complaintNumber });
 }
 
+export async function getUserComplaints(phone: string): Promise<Neo4jComplaint[]> {
+  return callProxy<Neo4jComplaint[]>('getUserComplaints', { phone });
+}
+
 export async function updateComplaintStatus(id: string, status: string): Promise<void> {
   await callProxy('updateStatus', { id, status });
 }

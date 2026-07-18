@@ -15,7 +15,6 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout }: Navb
 
   const allLinks: { label: string; page: Page; icon: React.ReactNode }[] = [
     { label: T.nav_home, page: 'home', icon: <Zap size={16} /> },
-    { label: T.nav_file, page: 'submit', icon: <FileText size={16} /> },
     { label: T.nav_track, page: 'track', icon: <Shield size={16} /> },
     { label: T.nav_hazard_map, page: 'hazardmap', icon: <MapPin size={16} /> },
     { label: T.nav_rti, page: 'rti', icon: <Scale size={16} /> },
@@ -84,14 +83,6 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout }: Navb
                 </button>
               </div>
 
-            {user?.role !== 'admin' && (
-              <button
-                onClick={() => onNavigate('submit')}
-                className="px-3 sm:px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md"
-              >
-                {T.nav_file_btn}
-              </button>
-            )}
           </div>
         </div>
       </div>

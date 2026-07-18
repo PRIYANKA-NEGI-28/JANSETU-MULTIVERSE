@@ -39,7 +39,7 @@ function AuthenticatedApp({
           onRequestLocation={requestLocation}
         />
       );
-      case 'track': return <TrackComplaint onNavigate={navigate} />;
+      case 'track': return <TrackComplaint onNavigate={navigate} user={user} />;
       case 'admin':
         if (user.role !== 'admin') {
           return <Home onNavigate={navigate} user={user} />;

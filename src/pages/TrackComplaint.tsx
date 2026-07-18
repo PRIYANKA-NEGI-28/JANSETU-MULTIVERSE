@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search, MapPin, Users, Clock, CheckCircle, AlertTriangle,
   ArrowRight, Loader, RefreshCw, UserCheck, GitBranch, ShieldAlert, Network,
 } from 'lucide-react';
-import { getComplaintByNumber, type Neo4jComplaint } from '../lib/neo4j';
+import { getComplaintByNumber, getUserComplaints, type Neo4jComplaint } from '../lib/neo4j';
 import type { Page } from '../types';
 import { useLang } from '../lib/langContext';
 
+import type { AuthUser } from '../lib/auth';
+
 interface TrackComplaintProps {
   onNavigate: (page: Page) => void;
+  user?: AuthUser | null;
 }
 
 const STATUS_STEPS = ['PENDING', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED'];
@@ -28,21 +31,34 @@ const URGENCY_COLORS = {
   CRITICAL: 'bg-red-100 text-red-700',
 };
 
-export default function TrackComplaint({ onNavigate }: TrackComplaintProps) {
+export default function TrackComplaint({ onNavigate, user }: TrackComplaintProps) {
   const { T } = useLang();
   const [query, setQuery] = useState('');
   const [complaint, setComplaint] = useState<Neo4jComplaint | null>(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [myHistory, setMyHistory] = useState<Neo4jComplaint[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
-  async function handleSearch() {
-    if (!query.trim()) return;
+  useEffect(() => {
+    if (user?.phone) {
+      setLoadingHistory(true);
+      getUserComplaints(user.phone)
+        .then(data => setMyHistory(data || []))
+        .catch(console.error)
+        .finally(() => setLoadingHistory(false));
+    }
+  }, [user]);
+
+  async function handleSearch(overrideQuery?: string) {
+    const q = typeof overrideQuery === 'string' ? overrideQuery : query;
+    if (!q.trim()) return;
     setLoading(true);
     setNotFound(false);
     setComplaint(null);
 
     try {
-      const data = await getComplaintByNumber(query.trim().toUpperCase());
+      const data = await getComplaintByNumber(q.trim().toUpperCase());
       if (data) {
         setComplaint(data);
       } else {
@@ -304,6 +320,51 @@ export default function TrackComplaint({ onNavigate }: TrackComplaintProps) {
                 {complaint.language === 'hi' && <span className="ml-2 px-2 py-0.5 bg-orange-50 text-orange-600 rounded-full text-xs">{T.track_hindi}</span>}
               </p>
             </div>
+          </div>
+        )}
+
+        {/* User History */}
+        {!complaint && user && (
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">What are my complaints?</h2>
+            {loadingHistory ? (
+              <div className="flex justify-center p-8"><Loader size={24} className="animate-spin text-orange-500" /></div>
+            ) : myHistory.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center shadow-sm text-gray-500">
+                You haven't filed any complaints yet.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {myHistory.map(c => (
+                  <div key={c.id} className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => {
+                            setQuery(c.complaint_number);
+                            handleSearch(c.complaint_number);
+                          }}
+                          className="font-mono text-sm font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded hover:bg-orange-100 transition-colors"
+                        >
+                          {c.complaint_number}
+                        </button>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${URGENCY_COLORS[c.urgency]}`}>{c.urgency}</span>
+                      </div>
+                      <div className={`flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-full ${STATUS_CONFIG[c.status]?.bg} ${STATUS_CONFIG[c.status]?.color}`}>
+                        {STATUS_CONFIG[c.status]?.icon}
+                        {T[STATUS_CONFIG[c.status]?.labelKey]}
+                      </div>
+                    </div>
+                    <h3 className="font-bold text-gray-900">{c.issue_type}</h3>
+                    <p className="text-sm text-gray-500 mt-1 line-clamp-1">{c.summary}</p>
+                    <p className="text-xs text-gray-400 mt-3 flex items-center gap-1.5">
+                      <Clock size={12} />
+                      {new Date((c as any).createdAt || c.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
