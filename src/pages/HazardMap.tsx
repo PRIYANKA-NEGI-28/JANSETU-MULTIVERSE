@@ -119,11 +119,14 @@ function project(lat: number, lng: number, w: number, h: number) {
   return { x, y };
 }
 
+import type { AuthUser } from '../lib/auth';
+
 interface HazardMapProps {
   onNavigate: (page: Page) => void;
+  user?: AuthUser | null;
 }
 
-export default function HazardMap({ onNavigate }: HazardMapProps) {
+export default function HazardMap({ onNavigate, user }: HazardMapProps) {
   const { T } = useLang();
   const { sensorAlerts, complaints } = useDashboard();
   
@@ -267,6 +270,19 @@ export default function HazardMap({ onNavigate }: HazardMapProps) {
             <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">{T.hazard_title}</h1>
             <p className="text-gray-400 text-sm max-w-xl">{T.hazard_subtitle}</p>
           </div>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex items-center gap-2 text-gray-400 text-sm font-semibold">
+              <Filter size={14} /> {T.hazard_filter}:
+            </div>
+            <select
+              value={filterType}
+              onChange={e => setFilterType(e.target.value)}
+              className="text-sm bg-gray-900 border border-gray-700 text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              <option value="ALL">{T.hazard_all_types}</option>
+              {HAZARD_TYPES.map(t => <option key={t.value} value={t.value}>{T[t.labelKey]}</option>)}
+            </select>
+          </div>
         </div>
 
         {/* Stats bar */}
@@ -292,27 +308,18 @@ export default function HazardMap({ onNavigate }: HazardMapProps) {
         {/* Map Panel */}
         <div className="flex-1 min-w-0">
           {/* Filters */}
-          <div className="flex flex-wrap gap-3 mb-4 items-center">
-            <div className="flex items-center gap-2 text-gray-400 text-sm font-semibold">
-              <Filter size={14} /> {T.hazard_filter}:
+          <div className="flex flex-wrap gap-3 mb-4 items-center justify-between">
+            <div className="flex items-center gap-3">
+              <select
+                value={filterSev}
+                onChange={e => setFilterSev(e.target.value)}
+                className="text-sm bg-gray-900 border border-gray-700 text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-500"
+              >
+                <option value="ALL">{T.hazard_all_severity}</option>
+                {['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
-            <select
-              value={filterType}
-              onChange={e => setFilterType(e.target.value)}
-              className="text-sm bg-gray-900 border border-gray-700 text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-500"
-            >
-              <option value="ALL">{T.hazard_all_types}</option>
-              {HAZARD_TYPES.map(t => <option key={t.value} value={t.value}>{T[t.labelKey]}</option>)}
-            </select>
-            <select
-              value={filterSev}
-              onChange={e => setFilterSev(e.target.value)}
-              className="text-sm bg-gray-900 border border-gray-700 text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-500"
-            >
-              <option value="ALL">{T.hazard_all_severity}</option>
-              {['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <div className="ml-auto text-xs text-gray-500 font-medium">{visibleClusters.length} {T.hazard_clusters_visible}</div>
+            <div className="text-xs text-gray-500 font-medium">{visibleClusters.length} {T.hazard_clusters_visible}</div>
           </div>
 
           {/* Map */}
@@ -400,7 +407,7 @@ export default function HazardMap({ onNavigate }: HazardMapProps) {
                   </div>
                   <div>
                     <h3 className="font-bold text-white text-lg">{T[typeInfo(selectedCluster.type).labelKey]} Cluster</h3>
-                    <p className="text-sm text-gray-400 flex items-center gap-1"><MapPin size={11} />{selectedCluster.area}</p>
+                    <p className="text-sm text-gray-400 flex items-center gap-1"><MapPin size={11} />{selectedCluster.area && selectedCluster.area !== 'Unknown Area' ? selectedCluster.area : 'Location on Map'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -461,7 +468,7 @@ export default function HazardMap({ onNavigate }: HazardMapProps) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
                           <span className="text-gray-400">{ti.icon}</span>
-                          <span className="text-sm font-semibold text-white truncate">{c.area}</span>
+                          <span className="text-sm font-semibold text-white truncate">{c.area && c.area !== 'Unknown Area' ? c.area : 'Location on Map'}</span>
                         </div>
                         <p className="text-xs text-gray-400 truncate">{T.hazard_report_count(c.count)} · {T[ti.labelKey]}</p>
                       </div>
@@ -494,12 +501,14 @@ export default function HazardMap({ onNavigate }: HazardMapProps) {
             </div>
           </div>
 
-          <button
-            onClick={() => onNavigate('submit')}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold rounded-xl transition-all"
-          >
-            {T.hazard_file_complaint} <ArrowRight size={14} />
-          </button>
+          {user?.role !== 'admin' && (
+            <button
+              onClick={() => onNavigate('submit')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold rounded-xl transition-all"
+            >
+              File a complaint <ArrowRight size={16} />
+            </button>
+          )}
         </div>
       </div>
 

@@ -45,7 +45,7 @@ function AuthenticatedApp({
           return <Home onNavigate={navigate} user={user} />;
         }
         return <AdminDashboard onAdminLogout={() => navigate('home')} />;
-      case 'hazardmap': return <HazardMap onNavigate={navigate} />;
+      case 'hazardmap': return <HazardMap onNavigate={navigate} user={user} />;
       case 'rti': return <RTIDrafter onNavigate={navigate} />;
       default: return <Home onNavigate={navigate} user={user} />;
     }
