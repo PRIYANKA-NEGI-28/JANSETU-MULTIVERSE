@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { runQuery } = require('../db/graph');
-const { getRtiDrafts, getAllComplaints, getComplaintsByPhone } = require('../db/sqlite');
+const { getRtiDrafts, getAllComplaints, getComplaintsByPhone, getComplaintByNumber } = require('../db/sqlite');
 
 // POST /api/dashboard - RPC endpoint for Neo4j proxy operations
 router.post('/', async (req, res) => {
@@ -9,25 +9,54 @@ router.post('/', async (req, res) => {
     const { action, params } = req.body;
     
     if (action === 'getComplaintByNumber') {
-      const query = `
-        MATCH (c:Complaint {complaint_number: $complaint_number})
-        OPTIONAL MATCH (c)-[:CLUSTER_WITH]-(similar:Complaint)
-        RETURN c, collect(similar) as similar_complaints
-      `;
-      const result = await runQuery(query, params);
-      
-      if (result.records.length === 0) {
-        return res.json({ success: true, data: null });
+      try {
+        const query = `
+          MATCH (c:Complaint {complaint_number: $complaint_number})
+          OPTIONAL MATCH (c)-[:CLUSTER_WITH]-(similar:Complaint)
+          RETURN c, collect(similar) as similar_complaints
+        `;
+        const result = await runQuery(query, params);
+        
+        if (result.records.length === 0) {
+          return res.json({ success: true, data: null });
+        }
+        
+        const record = result.records[0];
+        const complaint = record.get('c').properties;
+        const similar = record.get('similar_complaints').map(s => s.properties);
+        
+        complaint.similar_complaints = similar;
+        complaint.similar_count = similar.length + 1;
+        
+        return res.json({ success: true, data: complaint });
+      } catch (err) {
+        console.log('Neo4j getComplaintByNumber failed, using SQLite fallback');
+        const c = getComplaintByNumber(params.complaint_number);
+        if (!c) {
+          return res.json({ success: true, data: null });
+        }
+        
+        return res.json({ success: true, data: {
+          id: c.id,
+          complaint_number: c.complaint_number,
+          citizenName: c.citizen_name,
+          citizenPhone: c.citizen_phone,
+          issueType: c.issueType,
+          department: c.department,
+          area: c.area,
+          ward: c.ward,
+          rawText: c.raw_text,
+          summary: c.summary,
+          language: c.language,
+          lat: c.lat,
+          lng: c.lng,
+          imageUrl: c.imageUrl,
+          urgency: c.urgency,
+          status: c.status,
+          createdAt: c.createdAt,
+          similar_count: 0
+        }});
       }
-      
-      const record = result.records[0];
-      const complaint = record.get('c').properties;
-      const similar = record.get('similar_complaints').map(s => s.properties);
-      
-      complaint.similar_complaints = similar;
-      complaint.similar_count = similar.length + 1;
-      
-      return res.json({ success: true, data: complaint });
     }
     
     if (action === 'getUserComplaints') {

@@ -91,6 +91,11 @@ function getComplaintsByPhone(phone) {
   return stmt.all(phone);
 }
 
+function getComplaintByNumber(number) {
+  const stmt = db.prepare(`SELECT * FROM complaints WHERE complaint_number = ?`);
+  return stmt.get(number);
+}
+
 module.exports = {
   db,
   initSQLite,
@@ -100,5 +105,6 @@ module.exports = {
   updateComplaint,
   getRtiDrafts,
   getAllComplaints,
-  getComplaintsByPhone
+  getComplaintsByPhone,
+  getComplaintByNumber
 };

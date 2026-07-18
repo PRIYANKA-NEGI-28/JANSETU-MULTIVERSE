@@ -93,10 +93,6 @@ export default function TrackComplaint({ onNavigate, user }: TrackComplaintProps
     <div className="min-h-screen bg-gray-50 pt-20">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
         <div className="mb-10">
-          <div className="flex items-center gap-2 mb-2">
-            <Network size={16} className="text-green-600" />
-            <span className="text-xs font-bold text-green-600 uppercase tracking-widest">{T.track_powered}</span>
-          </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-3">{T.track_title}</h1>
           <p className="text-gray-500 text-lg">{T.track_subtitle}</p>
         </div>
