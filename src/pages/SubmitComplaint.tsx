@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Brain, MapPin, AlertTriangle, CheckCircle, ArrowRight, Loader,
-  FileText, Copy, Mic, MicOff, Volume2, LogIn, Download
+  FileText, Copy, Mic, MicOff, Volume2, Download
 } from 'lucide-react';
 import { analyzeComplaint } from '../lib/aiAnalyzer';
 import type { Page } from '../types';
 import type { AuthUser } from '../lib/auth';
 import { useLang } from '../lib/langContext';
+import ScrollReveal from '../components/ScrollReveal';
 
 interface SubmitComplaintProps {
   onNavigate: (page: Page) => void;
@@ -75,6 +76,7 @@ export default function SubmitComplaint({ onNavigate, user, location, onRequestL
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [shouldShake, setShouldShake] = useState(false);
   const [letterVisible, setLetterVisible] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
 
@@ -268,14 +270,20 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
   async function handleSubmit() {
     if (!form.name || !form.text) {
       setError(T.submit_error_fields);
+      setShouldShake(true);
+      setTimeout(() => setShouldShake(false), 500);
       return;
     }
     if (!analysis) {
       setError(T.submit_error_analyze);
+      setShouldShake(true);
+      setTimeout(() => setShouldShake(false), 500);
       return;
     }
     if (!photoFile) {
       setError('An image is mandatory to file a complaint.');
+      setShouldShake(true);
+      setTimeout(() => setShouldShake(false), 500);
       return;
     }
     setSubmitting(true);
@@ -378,52 +386,57 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
   return (
     <div className="min-h-screen bg-gray-50 pt-4">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold mb-4">
-            <Brain size={13} /> {T.submit_badge}
+        <ScrollReveal direction="up" delay={100}>
+          <div className="mb-10 animate-fade-up">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold mb-4">
+              <Brain size={13} /> {T.submit_badge}
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-3 tracking-tight">{T.submit_title}</h1>
+            <p className="text-gray-500 text-lg">{T.submit_subtitle}</p>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">{T.submit_title}</h1>
-          <p className="text-gray-500 text-lg">{T.submit_subtitle}</p>
-        </div>
+        </ScrollReveal>
 
 
         <div className="space-y-6">
           {/* Personal Info */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <h2 className="font-bold text-gray-900 mb-5 text-lg flex items-center gap-2">
-              <span className="w-7 h-7 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center font-bold">1</span>
-              {T.submit_step1}
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{T.submit_full_name} <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  placeholder={T.submit_name_placeholder}
-                  value={form.name}
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{T.submit_phone}</label>
-                <input
-                  type="tel"
-                  placeholder={T.submit_phone_placeholder}
-                  value={form.phone}
-                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-                />
+          <ScrollReveal direction="up" delay={200}>
+            <div className={`bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow duration-300 ${shouldShake ? 'animate-shake' : ''}`}>
+              <h2 className="font-bold text-gray-900 mb-5 text-lg flex items-center gap-2">
+                <span className="w-7 h-7 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center font-bold">1</span>
+                {T.submit_step1}
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{T.submit_full_name} <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    placeholder={T.submit_name_placeholder}
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-transparent transition-all input-premium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{T.submit_phone}</label>
+                  <input
+                    type="tel"
+                    placeholder={T.submit_phone_placeholder}
+                    value={form.phone}
+                    onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-transparent transition-all input-premium"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          </ScrollReveal>
 
           {/* Voice + Complaint */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <h2 className="font-bold text-gray-900 mb-5 text-lg flex items-center gap-2">
-              <span className="w-7 h-7 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center font-bold">2</span>
-              {T.submit_step2}
-            </h2>
+          <ScrollReveal direction="up" delay={250}>
+            <div className={`bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow duration-300 ${shouldShake ? 'animate-shake' : ''}`}>
+              <h2 className="font-bold text-gray-900 mb-5 text-lg flex items-center gap-2">
+                <span className="w-7 h-7 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center font-bold">2</span>
+                {T.submit_step2}
+              </h2>
 
             {/* Voice Controls */}
             <div className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100 rounded-xl p-4 mb-4">
@@ -514,7 +527,7 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
                 placeholder={T.submit_complaint_placeholder}
                 value={form.text}
                 onChange={e => handleTextChange(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none transition-all"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-transparent resize-none transition-all input-premium"
               />
               <p className="text-xs text-gray-400 mt-1">{form.text.length} {T.submit_characters}</p>
             </div>
@@ -527,23 +540,25 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
                 type="file"
                 accept="image/*"
                 onChange={e => setPhotoFile(e.target.files?.[0] || null)}
-                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 transition-all"
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 transition-all cursor-pointer"
               />
             </div>
 
             <button
               onClick={runAnalysis}
               disabled={form.text.length < 10 || analyzing}
-              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all"
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all btn-premium active:scale-95 shadow-sm"
             >
               {analyzing ? <Loader size={15} className="animate-spin" /> : <Brain size={15} />}
               {analyzing ? T.submit_analyzing : T.submit_analyze}
             </button>
           </div>
+          </ScrollReveal>
 
           {/* AI Analysis */}
           {analysis && (
-            <div className="bg-white rounded-2xl border border-indigo-100 ring-1 ring-indigo-100 p-6 shadow-sm">
+            <ScrollReveal direction="scale">
+              <div className="bg-white rounded-2xl border border-indigo-100 ring-1 ring-indigo-100 p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
               <div className="flex items-center gap-2 mb-5">
                 <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center">
                   <Brain size={16} className="text-white" />
@@ -636,6 +651,7 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
                 </div>
               )}
             </div>
+            </ScrollReveal>
           )}
 
           {error && (
@@ -648,7 +664,7 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
           <button
             onClick={handleSubmit}
             disabled={submitting || !analysis}
-            className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-lg rounded-2xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+            className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-lg rounded-2xl transition-all shadow-lg hover:shadow-xl btn-premium active:scale-95"
           >
             {submitting ? (
               <><Loader size={20} className="animate-spin" /> {T.submit_submitting}</>

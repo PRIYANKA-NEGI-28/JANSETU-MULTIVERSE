@@ -10,12 +10,7 @@ interface BottomNavProps {
   user: AuthUser | null;
 }
 
-const MAIN_TABS: { page: Page; icon: React.ReactNode; label: string }[] = [
-  { page: 'home', icon: <Home size={21} />, label: 'Home' },
-  { page: 'submit', icon: <PenLine size={21} />, label: 'File' },
-  { page: 'track', icon: <Search size={21} />, label: 'Track' },
-  { page: 'hazardmap', icon: <MapPin size={21} />, label: 'Map' },
-];
+
 
 export default function BottomNav({ currentPage, onNavigate, user }: BottomNavProps) {
   const [moreOpen, setMoreOpen] = useState(false);

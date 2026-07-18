@@ -28,9 +28,20 @@ function AuthenticatedApp({
   handleLogout: () => void;
 }) {
   const { lat, lng, permission, requestLocation } = useLocation();
+  const [fadePage, setFadePage] = useState<Page>(currentPage);
+  const [isFading, setIsFading] = useState(false);
+
+  useEffect(() => {
+    setIsFading(true);
+    const timer = setTimeout(() => {
+      setFadePage(currentPage);
+      setIsFading(false);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [currentPage]);
 
   function renderPage() {
-    switch (currentPage) {
+    switch (fadePage) {
       case 'home': return <Home onNavigate={navigate} user={user} />;
       case 'submit': return (
         <SubmitComplaint
@@ -82,7 +93,7 @@ function AuthenticatedApp({
           </div>
 
           {/* Page content */}
-          <main className="pb-[68px] md:pb-0">
+          <main className={`pb-[68px] md:pb-0 transition-opacity duration-200 ease-in-out ${isFading ? 'opacity-0' : 'opacity-100'}`}>
             {renderPage()}
           </main>
 
@@ -113,6 +124,9 @@ export default function App() {
     return 'home';
   });
 
+  const [showPreloader, setShowPreloader] = useState(true);
+  const [fadePreloader, setFadePreloader] = useState(false);
+
   useEffect(() => {
     if (user) {
       localStorage.setItem('jansetu_user', JSON.stringify(user));
@@ -120,6 +134,17 @@ export default function App() {
       localStorage.removeItem('jansetu_user');
     }
   }, [user]);
+
+  useEffect(() => {
+    const fadeTimer = setTimeout(() => {
+      setFadePreloader(true);
+      const removeTimer = setTimeout(() => {
+        setShowPreloader(false);
+      }, 500);
+      return () => clearTimeout(removeTimer);
+    }, 1200);
+    return () => clearTimeout(fadeTimer);
+  }, []);
 
   function navigate(page: Page) {
     setCurrentPage(page);
@@ -131,26 +156,51 @@ export default function App() {
     setCurrentPage('home');
   }
 
-  // Login gate — show login page before anything else in the app
-  if (!user) {
+  function renderContent() {
+    // Login gate — show login page before anything else in the app
+    if (!user) {
+      return (
+        <LangProvider>
+          <LoginPage onLogin={(u) => {
+            setUser(u);
+            setCurrentPage(u.role === 'admin' ? 'admin' : 'home');
+          }} />
+        </LangProvider>
+      );
+    }
+
     return (
-      <LangProvider>
-        <LoginPage onLogin={(u) => {
-          setUser(u);
-          setCurrentPage(u.role === 'admin' ? 'admin' : 'home');
-        }} />
-      </LangProvider>
+      <LocationProvider>
+        <AuthenticatedApp
+          currentPage={currentPage}
+          navigate={navigate}
+          user={user}
+          handleLogout={handleLogout}
+        />
+      </LocationProvider>
     );
   }
 
   return (
-    <LocationProvider>
-      <AuthenticatedApp
-        currentPage={currentPage}
-        navigate={navigate}
-        user={user}
-        handleLogout={handleLogout}
-      />
-    </LocationProvider>
+    <>
+      {showPreloader && (
+        <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gray-950 transition-opacity duration-500 ${fadePreloader ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <div className="text-center">
+            <div className="inline-flex items-center gap-3 mb-6 animate-pulse">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-2xl">
+                <span className="text-white font-black text-2xl">JS</span>
+              </div>
+              <div className="text-left">
+                <div className="font-black text-4xl text-white tracking-tight">JanSetu</div>
+                <div className="text-xs text-orange-500 font-bold uppercase tracking-widest">Multiverse</div>
+              </div>
+            </div>
+            {/* Elegant spinner */}
+            <div className="w-10 h-10 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mx-auto mt-4" />
+          </div>
+        </div>
+      )}
+      {renderContent()}
+    </>
   );
 }

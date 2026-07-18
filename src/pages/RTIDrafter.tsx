@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import {
-  FileText, ChevronRight, ChevronLeft, CheckCircle, Copy, Download,
+  FileText, ChevronRight, ChevronLeft, CheckCircle, Copy,
   Printer, ArrowRight, Sparkles, AlertCircle, Info, User, Building2,
   Calendar, HelpCircle, Scale, Stamp, Landmark, Building, Factory,
   Shield, GraduationCap, Stethoscope,
 } from 'lucide-react';
 import type { Page } from '../types';
 import { useLang } from '../lib/langContext';
+import ScrollReveal from '../components/ScrollReveal';
 
 interface RTIDrafterProps {
   onNavigate: (page: Page) => void;
@@ -263,24 +264,27 @@ export default function RTIDrafter({ onNavigate }: RTIDrafterProps) {
     }
   }
 
-  const inputBase = 'w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white placeholder-gray-400';
+  const inputBase = 'w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-transparent bg-white placeholder-gray-400 input-premium transition-all';
   const labelBase = 'block text-sm font-semibold text-gray-700 mb-1.5';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50 pt-4">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <Scale size={16} className="text-orange-600" />
-            <span className="text-xs font-bold text-orange-600 uppercase tracking-widest">{T.rti_badge}</span>
+        <ScrollReveal direction="up" delay={100}>
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-2">
+              <Scale size={16} className="text-orange-600 animate-pulse" />
+              <span className="text-xs font-bold text-orange-600 uppercase tracking-widest">{T.rti_badge}</span>
+            </div>
+            <h1 className="text-4xl font-black text-gray-900 mb-2">{T.rti_title}</h1>
+            <p className="text-gray-500 text-lg max-w-2xl">{T.rti_subtitle}</p>
           </div>
-          <h1 className="text-4xl font-black text-gray-900 mb-2">{T.rti_title}</h1>
-          <p className="text-gray-500 text-lg max-w-2xl">{T.rti_subtitle}</p>
-        </div>
+        </ScrollReveal>
 
         {/* Progress Steps */}
-        <div className="flex items-center gap-0 mb-8 overflow-x-auto pb-2">
+        <ScrollReveal direction="up" delay={200}>
+          <div className="flex items-center gap-0 mb-8 overflow-x-auto pb-2">
           {STEP_LABELS.map((label, i) => {
             const n = (i + 1) as Step;
             const done = step > n;
@@ -298,8 +302,10 @@ export default function RTIDrafter({ onNavigate }: RTIDrafterProps) {
             );
           })}
         </div>
+        </ScrollReveal>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <ScrollReveal direction="up" delay={300}>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           {/* Step 1 — Authority Type */}
           {step === 1 && (
             <div className="p-6 sm:p-8">
@@ -395,7 +401,7 @@ export default function RTIDrafter({ onNavigate }: RTIDrafterProps) {
               {/* Selected authority type badge */}
               <div className="mb-5 flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
                 <Info size={14} className="text-blue-500" />
-                <span className="text-sm font-semibold text-blue-700">{T[form.authorityType as keyof typeof T] || '—'}</span>
+                <span className="text-sm font-semibold text-blue-700">{(T as any)[form.authorityType] || '—'}</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -628,7 +634,7 @@ export default function RTIDrafter({ onNavigate }: RTIDrafterProps) {
             <button
               onClick={() => setStep(s => Math.max(1, s - 1) as Step)}
               disabled={step === 1}
-              className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 bg-white text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 disabled:opacity-30 transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 bg-white text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 disabled:opacity-30 transition-all btn-premium active:scale-95"
             >
               <ChevronLeft size={16} /> {T.rti_back}
             </button>
@@ -643,20 +649,21 @@ export default function RTIDrafter({ onNavigate }: RTIDrafterProps) {
               <button
                 onClick={() => setStep(s => Math.min(5, s + 1) as Step)}
                 disabled={!canProceed()}
-                className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all"
+                className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all btn-premium active:scale-95"
               >
                 {T.rti_next} <ChevronRight size={16} />
               </button>
             ) : (
               <button
                 onClick={() => onNavigate('submit')}
-                className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold rounded-xl transition-all"
+                className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold rounded-xl transition-all btn-premium active:scale-95"
               >
                 {T.rti_file_complaint} <ArrowRight size={15} />
               </button>
             )}
           </div>
         </div>
+        </ScrollReveal>
       </div>
     </div>
   );

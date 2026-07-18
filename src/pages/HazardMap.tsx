@@ -1,17 +1,20 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   MapPin, Camera, Upload, AlertTriangle, Zap, X, CheckCircle,
-  Filter, ChevronDown, ZoomIn, ZoomOut, RotateCcw, Layers,
-  Users, TrendingUp, Eye, Clock, ArrowRight,
+  Filter, Layers,
+  Users, TrendingUp, Clock, ArrowRight,
   Zap as ElectricIcon, Circle as PotholeIcon, Droplets, Building, Flame,
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { LOCATIONS, CITY_OPTIONS } from '../lib/locations';
 import type { Page } from '../types';
 import { useLang } from '../lib/langContext';
 import { useDashboard } from '../contexts/DashboardContext';
+import ScrollReveal from '../components/ScrollReveal';
+import CountUp from '../components/CountUp';
+import { Magnetic } from '../components/MouseInteractions';
 
 interface HazardReport {
   id: string;
@@ -110,15 +113,6 @@ function buildClusters(reports: HazardReport[]): Cluster[] {
   return clusters;
 }
 
-// Simple SVG map projection (flat mercator approximation for Delhi region)
-const MAP_BOUNDS = { minLat: 28.55, maxLat: 28.73, minLng: 77.06, maxLng: 77.40 };
-
-function project(lat: number, lng: number, w: number, h: number) {
-  const x = ((lng - MAP_BOUNDS.minLng) / (MAP_BOUNDS.maxLng - MAP_BOUNDS.minLng)) * w;
-  const y = h - ((lat - MAP_BOUNDS.minLat) / (MAP_BOUNDS.maxLat - MAP_BOUNDS.minLat)) * h;
-  return { x, y };
-}
-
 import type { AuthUser } from '../lib/auth';
 
 interface HazardMapProps {
@@ -144,15 +138,15 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
   const dynamicReports: HazardReport[] = [
     ...complaints.map(c => ({
       id: c.id,
-      lat: c.lat || 28.6139 + (Math.random() - 0.5) * 0.05,
-      lng: c.lng || 77.2090 + (Math.random() - 0.5) * 0.05,
+      lat: (c as any).lat || 28.6139 + (Math.random() - 0.5) * 0.05,
+      lng: (c as any).lng || 77.2090 + (Math.random() - 0.5) * 0.05,
       type: mapIssueToHazard(c.issue_type),
       severity: c.urgency,
       description: c.summary,
       photoUrl: null,
       reporterName: c.citizen_name,
       area: c.area,
-      status: c.status === 'RESOLVED' ? 'RESOLVED' : c.status === 'ASSIGNED' || c.status === 'IN_PROGRESS' ? 'ACKNOWLEDGED' : 'OPEN',
+      status: (c.status === 'RESOLVED' ? 'RESOLVED' : c.status === 'ASSIGNED' || c.status === 'IN_PROGRESS' ? 'ACKNOWLEDGED' : 'OPEN') as any,
       clusterSize: c.similar_count || 1,
       createdAt: c.created_at,
     })),
@@ -182,8 +176,6 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
   const [filterSev, setFilterSev] = useState<string>('ALL');
   const [showForm, setShowForm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [mapDims, setMapDims] = useState({ w: 800, h: 500 });
-  const mapRef = useRef<SVGSVGElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -258,48 +250,54 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
   const typeInfo = (type: string) => HAZARD_TYPES.find(t => t.value === type) || HAZARD_TYPES[0];
 
   return (
-    <div className="min-h-screen bg-gray-950 pt-20">
+    <div className="min-h-screen bg-gray-50 pt-20">
       {/* Header */}
-      <div className="bg-gray-950 border-b border-gray-800 px-4 sm:px-6 lg:px-8 py-6">
+      <div className="bg-white border-b border-gray-100 px-4 sm:px-6 lg:px-8 py-6 shadow-sm">
         <div className="max-w-7xl mx-auto flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-              <span className="text-xs font-bold text-red-400 uppercase tracking-widest">{T.hazard_live}</span>
+          <ScrollReveal direction="up" delay={100}>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                <span className="text-xs font-bold text-red-500 uppercase tracking-widest">{T.hazard_live}</span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">{T.hazard_title}</h1>
+              <p className="text-gray-500 text-sm max-w-xl">{T.hazard_subtitle}</p>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">{T.hazard_title}</h1>
-            <p className="text-gray-400 text-sm max-w-xl">{T.hazard_subtitle}</p>
-          </div>
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            <div className="flex items-center gap-2 text-gray-400 text-sm font-semibold">
-              <Filter size={14} /> {T.hazard_filter}:
+          </ScrollReveal>
+          <ScrollReveal direction="up" delay={150}>
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="flex items-center gap-2 text-gray-600 text-sm font-semibold">
+                <Filter size={14} /> {T.hazard_filter}:
+              </div>
+              <select
+                value={filterType}
+                onChange={e => setFilterType(e.target.value)}
+                className="text-sm bg-white border border-gray-200 text-gray-700 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-transparent input-premium"
+              >
+                <option value="ALL">{T.hazard_all_types}</option>
+                {HAZARD_TYPES.map(t => <option key={t.value} value={t.value}>{T[t.labelKey]}</option>)}
+              </select>
             </div>
-            <select
-              value={filterType}
-              onChange={e => setFilterType(e.target.value)}
-              className="text-sm bg-gray-900 border border-gray-700 text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-500"
-            >
-              <option value="ALL">{T.hazard_all_types}</option>
-              {HAZARD_TYPES.map(t => <option key={t.value} value={t.value}>{T[t.labelKey]}</option>)}
-            </select>
-          </div>
+          </ScrollReveal>
         </div>
 
         {/* Stats bar */}
         <div className="max-w-7xl mx-auto mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: T.hazard_open, value: totalOpen, icon: <AlertTriangle size={16} />, color: 'text-red-400' },
-            { label: T.hazard_critical_zones, value: criticalZones, icon: <Zap size={16} />, color: 'text-yellow-400' },
-            { label: T.hazard_citizens_reported, value: totalAffected, icon: <Users size={16} />, color: 'text-blue-400' },
-            { label: T.hazard_clusters, value: clusters.length, icon: <Layers size={16} />, color: 'text-green-400' },
-          ].map(({ label, value, icon, color }) => (
-            <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 flex items-center gap-3">
-              <div className={color}>{icon}</div>
-              <div>
-                <p className={`text-2xl font-black ${color}`}>{value}</p>
-                <p className="text-xs text-gray-500 font-medium">{label}</p>
+            { label: T.hazard_open, value: totalOpen, icon: <AlertTriangle size={16} />, color: 'text-red-500' },
+            { label: T.hazard_critical_zones, value: criticalZones, icon: <Zap size={16} />, color: 'text-yellow-600' },
+            { label: T.hazard_citizens_reported, value: totalAffected, icon: <Users size={16} />, color: 'text-blue-500' },
+            { label: T.hazard_clusters, value: clusters.length, icon: <Layers size={16} />, color: 'text-green-600' },
+          ].map(({ label, value, icon, color }, i) => (
+            <ScrollReveal key={label} direction="up" delay={i * 60} className="w-full">
+              <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm hover:shadow-md h-full transition-shadow duration-300">
+                <div className={color}>{icon}</div>
+                <div>
+                  <p className={`text-2xl font-black ${color}`}><CountUp end={value} /></p>
+                  <p className="text-xs text-gray-400 font-medium">{label}</p>
+                </div>
               </div>
-            </div>
+            </ScrollReveal>
           ))}
         </div>
       </div>
@@ -308,19 +306,21 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
         {/* Map Panel */}
         <div className="flex-1 min-w-0">
           {/* Filters */}
-          <div className="flex flex-wrap gap-3 mb-4 items-center justify-between">
-            <div className="flex items-center gap-3">
-              <select
-                value={filterSev}
-                onChange={e => setFilterSev(e.target.value)}
-                className="text-sm bg-gray-900 border border-gray-700 text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-500"
-              >
-                <option value="ALL">{T.hazard_all_severity}</option>
-                {['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+          <ScrollReveal direction="up" delay={200}>
+            <div className="flex flex-wrap gap-3 mb-4 items-center justify-between">
+              <div className="flex items-center gap-3">
+                <select
+                  value={filterSev}
+                  onChange={e => setFilterSev(e.target.value)}
+                  className="text-sm bg-white border border-gray-200 text-gray-700 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-transparent input-premium"
+                >
+                  <option value="ALL">{T.hazard_all_severity}</option>
+                  {['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="text-xs text-gray-400 font-medium">{visibleClusters.length} {T.hazard_clusters_visible}</div>
             </div>
-            <div className="text-xs text-gray-500 font-medium">{visibleClusters.length} {T.hazard_clusters_visible}</div>
-          </div>
+          </ScrollReveal>
 
           {/* Map */}
           <div className="relative bg-gray-900 border border-gray-700 rounded-2xl overflow-hidden" style={{ height: 480, zIndex: 0 }}>
@@ -399,115 +399,125 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
 
           {/* Cluster detail panel */}
           {selectedCluster && (
-            <div className="mt-4 bg-gray-900 border border-gray-700 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-300">
-                    {typeInfo(selectedCluster.type).icon}
+            <ScrollReveal direction="up">
+              <div className="mt-4 bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600">
+                      {typeInfo(selectedCluster.type).icon}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-lg">{T[typeInfo(selectedCluster.type).labelKey]} Cluster</h3>
+                      <p className="text-sm text-gray-500 flex items-center gap-1"><MapPin size={11} className="text-orange-500" />{selectedCluster.area && selectedCluster.area !== 'Unknown Area' ? selectedCluster.area : 'Location on Map'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-white text-lg">{T[typeInfo(selectedCluster.type).labelKey]} Cluster</h3>
-                    <p className="text-sm text-gray-400 flex items-center gap-1"><MapPin size={11} />{selectedCluster.area && selectedCluster.area !== 'Unknown Area' ? selectedCluster.area : 'Location on Map'}</p>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-3 py-1 rounded-full font-bold ${SEV_TEXT[selectedCluster.severity]}`}>{selectedCluster.severity}</span>
+                    <button onClick={() => setSelectedCluster(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                      <X size={18} />
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs px-3 py-1 rounded-full font-bold ${SEV_TEXT[selectedCluster.severity]}`}>{selectedCluster.severity}</span>
-                  <button onClick={() => setSelectedCluster(null)} className="text-gray-500 hover:text-white transition-colors">
-                    <X size={18} />
-                  </button>
+                <div className="space-y-3">
+                  {selectedCluster.reports.map(r => (
+                    <div key={r.id} className="bg-gray-50 border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-all duration-300">
+                      <div className="flex items-start justify-between gap-2 flex-wrap mb-2">
+                        <p className="text-sm font-semibold text-gray-800">{r.description}</p>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                          r.status === 'RESOLVED' ? 'bg-green-100 text-green-700' :
+                          r.status === 'ACKNOWLEDGED' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                        }`}>{r.status}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-gray-400">
+                        <span className="flex items-center gap-1"><Users size={10} />{r.reporterName}</span>
+                        <span className="flex items-center gap-1"><Clock size={10} />{new Date(r.createdAt).toLocaleDateString('en-IN')}</span>
+                      </div>
+                      {r.photoUrl && (
+                        <img src={r.photoUrl} alt="Hazard" className="mt-3 w-full h-32 object-cover rounded-lg" />
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="space-y-3">
-                {selectedCluster.reports.map(r => (
-                  <div key={r.id} className="bg-gray-800 border border-gray-700 rounded-xl p-4">
-                    <div className="flex items-start justify-between gap-2 flex-wrap mb-2">
-                      <p className="text-sm font-semibold text-white">{r.description}</p>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
-                        r.status === 'RESOLVED' ? 'bg-green-900 text-green-400' :
-                        r.status === 'ACKNOWLEDGED' ? 'bg-blue-900 text-blue-400' : 'bg-red-900 text-red-400'
-                      }`}>{r.status}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-500">
-                      <span className="flex items-center gap-1"><Users size={10} />{r.reporterName}</span>
-                      <span className="flex items-center gap-1"><Clock size={10} />{new Date(r.createdAt).toLocaleDateString('en-IN')}</span>
-                    </div>
-                    {r.photoUrl && (
-                      <img src={r.photoUrl} alt="Hazard" className="mt-3 w-full h-32 object-cover rounded-lg opacity-80" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+            </ScrollReveal>
           )}
         </div>
 
         {/* Sidebar — Top Critical Zones */}
         <div className="w-full lg:w-80 shrink-0 space-y-4">
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800 flex items-center gap-2">
-              <TrendingUp size={16} className="text-red-400" />
-              <h3 className="font-bold text-white text-sm">{T.hazard_critical_zones_title}</h3>
-              <span className="ml-auto text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">{T.hazard_priority}</span>
-            </div>
-            <div className="divide-y divide-gray-800">
-              {[...visibleClusters]
-                .sort((a, b) => {
-                  const ord = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
-                  return (ord[b.severity] - ord[a.severity]) || b.count - a.count;
-                })
-                .slice(0, 8)
-                .map((c, i) => {
-                  const ti = typeInfo(c.type);
-                  return (
-                    <button
-                      key={c.id}
-                      onClick={() => setSelectedCluster(c)}
-                      className="w-full px-5 py-3.5 flex items-start gap-3 hover:bg-gray-800 transition-colors text-left"
-                    >
-                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-800 text-gray-500 text-xs font-bold shrink-0 mt-0.5">{i + 1}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className="text-gray-400">{ti.icon}</span>
-                          <span className="text-sm font-semibold text-white truncate">{c.area && c.area !== 'Unknown Area' ? c.area : 'Location on Map'}</span>
+          <ScrollReveal direction="up" delay={100}>
+            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
+                <TrendingUp size={16} className="text-red-500 animate-pulse" />
+                <h3 className="font-bold text-gray-900 text-sm">{T.hazard_critical_zones_title}</h3>
+                <span className="ml-auto text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{T.hazard_priority}</span>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {[...visibleClusters]
+                  .sort((a, b) => {
+                    const ord = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+                    return (ord[b.severity] - ord[a.severity]) || b.count - a.count;
+                  })
+                  .slice(0, 8)
+                  .map((c, i) => {
+                    const ti = typeInfo(c.type);
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => setSelectedCluster(c)}
+                        className="w-full px-5 py-3.5 flex items-start gap-3 hover:bg-gray-50/70 transition-colors text-left group"
+                      >
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-gray-400 text-xs font-bold shrink-0 mt-0.5 group-hover:bg-orange-50 group-hover:text-orange-500 transition-colors">{i + 1}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="text-gray-500 group-hover:scale-110 transition-transform">{ti.icon}</span>
+                            <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-gray-900 transition-colors">{c.area && c.area !== 'Unknown Area' ? c.area : 'Location on Map'}</span>
+                          </div>
+                          <p className="text-xs text-gray-400 truncate">{T.hazard_report_count(c.count)} · {T[ti.labelKey]}</p>
                         </div>
-                        <p className="text-xs text-gray-400 truncate">{T.hazard_report_count(c.count)} · {T[ti.labelKey]}</p>
-                      </div>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 mt-1 ${SEV_TEXT[c.severity]}`}>{c.severity}</span>
-                    </button>
-                  );
-                })}
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 mt-1 ${SEV_TEXT[c.severity]}`}>{c.severity}</span>
+                      </button>
+                    );
+                  })}
+              </div>
             </div>
-          </div>
+          </ScrollReveal>
 
           {/* How clustering works */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Layers size={16} className="text-green-400" />
-              <h3 className="font-bold text-white text-sm">{T.hazard_clustering_title}</h3>
+          <ScrollReveal direction="up" delay={200}>
+            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <Layers size={16} className="text-green-500 animate-pulse" />
+                <h3 className="font-bold text-gray-900 text-sm">{T.hazard_clustering_title}</h3>
+              </div>
+              <div className="space-y-3 text-xs text-gray-500">
+                {[
+                  { icon: <MapPin size={14} className="text-green-500" />, text: T.hazard_cluster_1 },
+                  { icon: <Layers size={14} className="text-blue-500" />, text: T.hazard_cluster_2 },
+                  { icon: <Zap size={14} className="text-yellow-500" />, text: T.hazard_cluster_3 },
+                  { icon: <AlertTriangle size={14} className="text-orange-500" />, text: T.hazard_cluster_4 },
+                  { icon: <CheckCircle size={14} className="text-green-500" />, text: T.hazard_cluster_5 },
+                ].map(({ icon, text }) => (
+                  <div key={text} className="flex items-start gap-2.5">
+                    <span className="shrink-0">{icon}</span>
+                    <span>{text}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="space-y-3 text-xs text-gray-400">
-              {[
-                { icon: <MapPin size={14} className="text-green-400" />, text: T.hazard_cluster_1 },
-                { icon: <Layers size={14} className="text-blue-400" />, text: T.hazard_cluster_2 },
-                { icon: <Zap size={14} className="text-yellow-400" />, text: T.hazard_cluster_3 },
-                { icon: <AlertTriangle size={14} className="text-orange-400" />, text: T.hazard_cluster_4 },
-                { icon: <CheckCircle size={14} className="text-green-400" />, text: T.hazard_cluster_5 },
-              ].map(({ icon, text }) => (
-                <div key={text} className="flex items-start gap-2.5">
-                  <span className="shrink-0">{icon}</span>
-                  <span>{text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          </ScrollReveal>
 
           {user?.role !== 'admin' && (
-            <button
-              onClick={() => onNavigate('submit')}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold rounded-xl transition-all"
-            >
-              File a complaint <ArrowRight size={16} />
-            </button>
+            <ScrollReveal direction="scale" delay={250}>
+              <Magnetic>
+                <button
+                  onClick={() => onNavigate('submit')}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl btn-premium active:scale-95 shadow-md shadow-orange-200 transition-all"
+                >
+                  File a complaint <ArrowRight size={16} />
+                </button>
+              </Magnetic>
+            </ScrollReveal>
           )}
         </div>
       </div>
@@ -515,33 +525,33 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
       {/* Report Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+          <div className="bg-white border border-gray-100 rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-scale">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
               <div>
-                <h2 className="text-lg font-bold text-white">{T.hazard_report_title}</h2>
-                <p className="text-xs text-gray-400 mt-0.5">{T.hazard_report_desc}</p>
+                <h2 className="text-lg font-bold text-gray-900">{T.hazard_report_title}</h2>
+                <p className="text-xs text-gray-500 mt-0.5">{T.hazard_report_desc}</p>
               </div>
-              <button onClick={() => setShowForm(false)} className="text-gray-500 hover:text-white"><X size={20} /></button>
+              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={20} /></button>
             </div>
 
             {submitted ? (
               <div className="p-10 text-center">
-                <CheckCircle size={48} className="text-green-400 mx-auto mb-3" />
-                <h3 className="text-xl font-bold text-white mb-2">{T.hazard_reported}</h3>
-                <p className="text-gray-400 text-sm">{T.hazard_reported_msg}</p>
+                <CheckCircle size={48} className="text-green-500 mx-auto mb-3 animate-bounce" />
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{T.hazard_reported}</h3>
+                <p className="text-gray-500 text-sm">{T.hazard_reported_msg}</p>
               </div>
             ) : (
               <div className="p-6 space-y-5">
                 {/* Hazard type */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-2">{T.hazard_type_label} *</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{T.hazard_type_label} *</label>
                   <div className="grid grid-cols-2 gap-2">
                     {HAZARD_TYPES.map(t => (
                       <button
                         key={t.value}
                         onClick={() => setForm(f => ({ ...f, type: t.value as HazardReport['type'] }))}
-                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
-                          form.type === t.value ? 'border-red-500 bg-red-950/60 text-red-300' : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-500'
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all btn-premium active:scale-95 ${
+                          form.type === t.value ? 'border-red-500 bg-red-50 text-red-700 shadow-sm' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                         }`}
                       >
                         {t.icon}{T[t.labelKey]}
@@ -552,14 +562,14 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
 
                 {/* Severity */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-2">{T.hazard_severity_label} *</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{T.hazard_severity_label} *</label>
                   <div className="flex gap-2 flex-wrap">
                     {(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const).map(s => (
                       <button
                         key={s}
                         onClick={() => setForm(f => ({ ...f, severity: s }))}
-                        className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                          form.severity === s ? `${SEV_TEXT[s]} border-current` : 'border-gray-700 bg-gray-800 text-gray-400'
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-all btn-premium active:scale-95 ${
+                          form.severity === s ? `${SEV_TEXT[s]} border-current` : 'border-gray-200 bg-white text-gray-505 hover:bg-gray-55'
                         }`}
                       >{s}</button>
                     ))}
@@ -568,34 +578,34 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-2">{T.hazard_desc_label} *</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{T.hazard_desc_label} *</label>
                   <textarea
                     value={form.description}
                     onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                     rows={3}
                     placeholder={T.hazard_desc_placeholder}
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-500 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 text-gray-800 placeholder-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-transparent resize-none input-premium"
                   />
                 </div>
 
                 {/* Reporter name */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-2">{T.hazard_name_label} *</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{T.hazard_name_label} *</label>
                   <input
                     value={form.reporterName}
                     onChange={e => setForm(f => ({ ...f, reporterName: e.target.value }))}
                     placeholder={T.hazard_name_placeholder}
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-500 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 text-gray-800 placeholder-gray-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-transparent input-premium"
                   />
                 </div>
 
                 {/* Area */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-2">{T.hazard_area_label}</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{T.hazard_area_label}</label>
                   <select
                     value={form.area}
                     onChange={e => setForm(f => ({ ...f, area: e.target.value }))}
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full px-4 py-3 bg-white border border-gray-200 text-gray-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-transparent input-premium"
                   >
                     <option value="">{T.hazard_select_area}</option>
                     {CITY_OPTIONS.filter(c => c !== 'All').map(city => (
@@ -612,8 +622,8 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
                 <div>
                   <button
                     onClick={handleGetGPS}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
-                      form.useGPS ? 'bg-green-950/50 border-green-700 text-green-400' : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-500'
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all btn-premium active:scale-95 ${
+                      form.useGPS ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
                     }`}
                   >
                     <MapPin size={14} />
@@ -623,20 +633,20 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
 
                 {/* Photo upload */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-2">{T.hazard_photo_label}</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{T.hazard_photo_label}</label>
                   <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
                   {form.photoPreview ? (
                     <div className="relative">
                       <img src={form.photoPreview} alt="preview" className="w-full h-32 object-cover rounded-xl" />
                       <button
                         onClick={() => setForm(f => ({ ...f, photoFile: null, photoPreview: null }))}
-                        className="absolute top-2 right-2 bg-black/60 rounded-full p-1 text-white"
+                        className="absolute top-2 right-2 bg-black/60 rounded-full p-1 text-white hover:bg-black/80 transition-colors"
                       ><X size={14} /></button>
                     </div>
                   ) : (
                     <button
                       onClick={() => fileRef.current?.click()}
-                      className="w-full border-2 border-dashed border-gray-700 rounded-xl p-6 text-center text-gray-500 hover:border-gray-500 hover:text-gray-400 transition-all"
+                      className="w-full border-2 border-dashed border-gray-200 rounded-xl p-6 text-center text-gray-400 hover:border-orange-300 hover:text-orange-500 transition-all cursor-pointer bg-gray-50/50"
                     >
                       <Upload size={20} className="mx-auto mb-2" />
                       <span className="text-sm">{T.hazard_upload_photo}</span>
@@ -647,7 +657,7 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
                 <button
                   onClick={handleSubmit}
                   disabled={!form.description.trim() || !form.reporterName.trim()}
-                  className="w-full py-3.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 btn-premium active:scale-95 shadow-md shadow-red-100"
                 >
                   <Camera size={16} /> {T.hazard_submit}
                 </button>
