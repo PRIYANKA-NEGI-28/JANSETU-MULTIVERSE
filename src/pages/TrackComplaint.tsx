@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Search, MapPin, Users, Clock, CheckCircle, AlertTriangle,
-  ArrowRight, Loader, RefreshCw, UserCheck, GitBranch, ShieldAlert, Network,
+  ArrowRight, Loader, RefreshCw, UserCheck, GitBranch, ShieldAlert,
 } from 'lucide-react';
 import { getComplaintByNumber, getUserComplaints, type Neo4jComplaint } from '../lib/neo4j';
 import type { Page } from '../types';
@@ -75,20 +75,6 @@ export default function TrackComplaint({ onNavigate, user }: TrackComplaintProps
   function getStepIndex(status: string) {
     if (status === 'ESCALATED') return -1;
     return STATUS_STEPS.indexOf(status);
-  }
-
-  function buildGraphLines(c: Neo4jComplaint): string[] {
-    const lines: string[] = [
-      `(:Citizen {${c.citizen_name}})-[:REPORTED]-> (:Complaint {${c.complaint_number}})`,
-      `(:Complaint)-[:HAS_TYPE]->(:IssueType {${c.issue_type}})`,
-      `(:Complaint)-[:LOCATED_AT]->(:Location {${c.area}, ${c.ward}})`,
-      `(:Complaint)-[:ASSIGNED_TO]->(:Department {${c.department}})`,
-      `(:Complaint)-[:HAS_STATUS]->(:Status {${c.status}})`,
-    ];
-    if (c.similar_count > 1) {
-      lines.push(`(:Complaint)-[:SIMILAR_TO]->(${c.similar_count - 1} related complaints)`);
-    }
-    return lines;
   }
 
   return (
@@ -187,30 +173,6 @@ export default function TrackComplaint({ onNavigate, user }: TrackComplaintProps
                     <p className="text-xs text-gray-400 mb-1 font-medium">{T.track_department}</p>
                     <p className="text-sm font-semibold text-gray-900">{complaint.department}</p>
                   </div>
-                </div>
-              </div>
-            </ScrollReveal>
-
-            {/* Neo4j Graph Relationships */}
-            <ScrollReveal direction="up" delay={100}>
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center">
-                    <Network size={18} className="text-green-400 animate-pulse" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 text-sm">{T.track_graph_title}</h3>
-                    <p className="text-xs text-gray-400">{T.track_graph_desc}</p>
-                  </div>
-                </div>
-                <div className="bg-gray-950 rounded-xl p-5 font-mono text-sm space-y-2 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/5 rounded-full blur-xl pointer-events-none" />
-                  {buildGraphLines(complaint).map((line, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <span className="text-green-700 select-none text-xs pt-0.5">{String(i + 1).padStart(2, '0')}</span>
-                      <span className="text-green-400 leading-relaxed break-all">{line}</span>
-                    </div>
-                  ))}
                 </div>
               </div>
             </ScrollReveal>
