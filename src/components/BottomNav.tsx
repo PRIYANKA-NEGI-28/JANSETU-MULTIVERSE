@@ -4,8 +4,6 @@ import type { Page } from '../types';
 import { useLang } from '../lib/langContext';
 import type { AuthUser } from '../lib/auth';
 
-import type { AuthUser } from '../lib/auth';
-
 interface BottomNavProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;

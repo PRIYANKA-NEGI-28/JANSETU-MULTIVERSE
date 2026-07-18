@@ -19,17 +19,12 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout }: Navb
     { label: T.nav_track, page: 'track', icon: <Shield size={16} /> },
     { label: T.nav_hazard_map, page: 'hazardmap', icon: <MapPin size={16} /> },
     { label: T.nav_rti, page: 'rti', icon: <Scale size={16} /> },
+    { label: T.nav_admin, page: 'admin', icon: <BarChart2 size={16} /> },
   ];
 
-<<<<<<< HEAD
-  if (user?.role === 'admin') {
-    links.push({ label: T.nav_admin, page: 'admin', icon: <BarChart2 size={16} /> });
-  }
-=======
   const links = user?.role === 'admin'
     ? allLinks.filter(link => link.page === 'admin' || link.page === 'hazardmap')
-    : allLinks;
->>>>>>> 751ebf6 (admin-page)
+    : allLinks.filter(link => link.page !== 'admin');
 
   const displayName = user?.name || 'User';
 
