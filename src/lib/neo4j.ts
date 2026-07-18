@@ -1,20 +1,17 @@
-const PROXY_URL = import.meta.env.VITE_NEO4J_PROXY_URL as string;
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
 async function callProxy<T>(action: string, params: Record<string, unknown> = {}): Promise<T> {
-  const res = await fetch(PROXY_URL, {
+  const res = await fetch(`${BACKEND_URL}/api/dashboard`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${ANON_KEY}`,
-      'Apikey': ANON_KEY,
     },
     body: JSON.stringify({ action, params }),
   });
 
   if (!res.ok) {
     const text = await res.text().catch(() => 'no body');
-    throw new Error(`Proxy error ${res.status}: ${text}`);
+    throw new Error(`Backend error ${res.status}: ${text}`);
   }
 
   const json = await res.json();

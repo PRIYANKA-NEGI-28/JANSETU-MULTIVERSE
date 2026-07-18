@@ -7,11 +7,11 @@ import {
 import { getAllComplaints, type Neo4jComplaint } from '../lib/neo4j';
 import { useLang } from '../lib/langContext';
 import type { Page } from '../types';
-import type { User } from '@supabase/supabase-js';
+import type { AuthUser } from '../lib/auth';
 
 interface HomeProps {
   onNavigate: (page: Page) => void;
-  user?: User | null;
+  user?: AuthUser | null;
 }
 
 const ISSUE_ICONS: Record<string, React.ReactNode> = {
@@ -102,7 +102,7 @@ export default function Home({ onNavigate, user }: HomeProps) {
             {user && (
               <div className="inline-flex items-center gap-2 px-5 py-2 bg-green-50 border border-green-200 text-green-700 rounded-full text-sm font-semibold mb-6">
                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                {T.hero_welcome}, {user.user_metadata?.full_name || user.email?.split('@')[0]}!
+                {T.hero_welcome}, {user.name}!
               </div>
             )}
 
@@ -119,14 +119,6 @@ export default function Home({ onNavigate, user }: HomeProps) {
               >
                 {T.hero_track_btn}
               </button>
-              {!user && (
-                <button
-                  onClick={() => onNavigate('login')}
-                  className="flex items-center gap-2 px-8 py-4 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-xl text-lg transition-all duration-200"
-                >
-                  {T.hero_login_btn}
-                </button>
-              )}
             </div>
 
             {/* India flag strip */}

@@ -2,6 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
+console.log('Environment variables loaded:');
+console.log('NEO4J_URI:', process.env.NEO4J_URI);
+console.log('NEO4J_USERNAME:', process.env.NEO4J_USERNAME);
+console.log('NEO4J_PASSWORD:', process.env.NEO4J_PASSWORD ? 'set' : 'not set');
 
 const { verifyConnection } = require('./db/graph');
 const { initSQLite } = require('./db/sqlite');

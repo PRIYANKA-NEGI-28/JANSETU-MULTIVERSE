@@ -6,12 +6,12 @@ import {
 import { analyzeComplaint } from '../lib/aiAnalyzer';
 import { LOCATIONS, CITY_OPTIONS } from '../lib/locations';
 import type { Page } from '../types';
-import type { User } from '@supabase/supabase-js';
+import type { AuthUser } from '../lib/auth';
 import { useLang } from '../lib/langContext';
 
 interface SubmitComplaintProps {
   onNavigate: (page: Page) => void;
-  user: User | null;
+  user: AuthUser | null;
 }
 
 const URGENCY_CONFIG = {
@@ -65,7 +65,7 @@ interface SpeechRecognitionErrorEvent extends Event {
 export default function SubmitComplaint({ onNavigate, user }: SubmitComplaintProps) {
   const { T } = useLang();
   const [form, setForm] = useState({
-    name: user?.user_metadata?.full_name || '',
+    name: user?.name || '',
     phone: '',
     text: '',
     area: '',
@@ -93,11 +93,11 @@ export default function SubmitComplaint({ onNavigate, user }: SubmitComplaintPro
   const filteredLocations = LOCATIONS.filter(l => l.city === form.city);
 
   useEffect(() => {
-    if (user?.user_metadata?.full_name) {
-      setForm(f => ({ ...f, name: user.user_metadata.full_name }));
+    if (user?.name) {
+      setForm(f => ({ ...f, name: user.name }));
     }
-    if (user?.user_metadata?.phone) {
-      setForm(f => ({ ...f, phone: user.user_metadata.phone }));
+    if (user?.phone) {
+      setForm(f => ({ ...f, phone: user.phone }));
     }
   }, [user]);
 
@@ -369,7 +369,7 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
                 Track Your Complaint <ArrowRight size={16} />
               </button>
               <button
-                onClick={() => { setSubmitted(null); setForm({ name: user?.user_metadata?.full_name || '', phone: '', text: '', area: '', ward: '', city: 'Delhi' }); setAnalysis(null); }}
+                onClick={() => { setSubmitted(null); setForm({ name: user?.name || '', phone: '', text: '', area: '', ward: '', city: 'Delhi' }); setAnalysis(null); }}
                 className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all"
               >
                 {T.submit_file_another}
@@ -392,19 +392,6 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
           <p className="text-gray-500 text-lg">{T.submit_subtitle}</p>
         </div>
 
-        {!user && (
-          <div className="mb-6 flex items-center justify-between bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4">
-            <div className="text-sm text-blue-700">
-              <span className="font-semibold">{T.submit_not_logged_in}</span> {T.submit_login_prompt}
-            </div>
-            <button
-              onClick={() => onNavigate('login')}
-              className="flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:text-blue-900 transition-colors whitespace-nowrap ml-4"
-            >
-              <LogIn size={14} /> {T.submit_login_btn}
-            </button>
-          </div>
-        )}
 
         <div className="space-y-6">
           {/* Personal Info */}

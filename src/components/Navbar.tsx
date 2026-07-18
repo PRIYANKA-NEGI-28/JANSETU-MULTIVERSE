@@ -1,12 +1,12 @@
 import { Zap, Shield, BarChart2, FileText, User, LogOut, Languages, MapPin, Scale } from 'lucide-react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { AuthUser } from '../lib/auth';
 import type { Page } from '../types';
 import { useLang } from '../lib/langContext';
 
 interface NavbarProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
-  user: SupabaseUser | null;
+  user: AuthUser | null;
   onLogout: () => void;
 }
 
@@ -22,7 +22,7 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout }: Navb
     { label: T.nav_admin, page: 'admin', icon: <BarChart2 size={16} /> },
   ];
 
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+  const displayName = user?.name || 'User';
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 shadow-sm">
@@ -66,8 +66,7 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout }: Navb
               <span className="hidden sm:inline">{lang === 'en' ? 'हिं' : 'EN'}</span>
             </button>
 
-            {user ? (
-              <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
+            <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
                 <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center">
                   <span className="text-white text-xs font-bold">{displayName[0].toUpperCase()}</span>
                 </div>
@@ -80,15 +79,6 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout }: Navb
                   <LogOut size={14} />
                 </button>
               </div>
-            ) : (
-              <button
-                onClick={() => onNavigate('login')}
-                className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 border border-gray-200 text-gray-700 text-xs sm:text-sm font-medium rounded-lg hover:bg-gray-50 transition-all"
-              >
-                <User size={14} />
-                <span className="hidden sm:inline">{T.nav_login}</span>
-              </button>
-            )}
 
             <button
               onClick={() => onNavigate('submit')}

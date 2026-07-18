@@ -1,12 +1,12 @@
 import { ChevronLeft, Languages, LogOut, User } from 'lucide-react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import type { AuthUser } from '../lib/auth';
 import type { Page } from '../types';
 import { useLang } from '../lib/langContext';
 
 interface MobileHeaderProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
-  user: SupabaseUser | null;
+  user: AuthUser | null;
   onLogout: () => void;
 }
 
@@ -18,9 +18,8 @@ export default function MobileHeader({ currentPage, onNavigate, user, onLogout }
     : currentPage === 'admin' ? T.nav_admin
     : currentPage === 'hazardmap' ? T.nav_hazard_map
     : currentPage === 'rti' ? T.nav_rti
-    : currentPage === 'login' ? T.nav_login
     : undefined;
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || '';
+  const displayName = user?.name || '';
 
   return (
     <div className="flex items-center justify-between h-14 px-4 bg-white border-b border-gray-100">
@@ -56,8 +55,7 @@ export default function MobileHeader({ currentPage, onNavigate, user, onLogout }
           {lang === 'en' ? 'हिं' : 'EN'}
         </button>
 
-        {user ? (
-          <button
+        <button
             onClick={onLogout}
             className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center relative group"
             title={`Sign out (${displayName})`}
@@ -67,14 +65,6 @@ export default function MobileHeader({ currentPage, onNavigate, user, onLogout }
             </span>
             <LogOut size={14} className="text-white hidden group-hover:block" />
           </button>
-        ) : (
-          <button
-            onClick={() => onNavigate('login')}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-          >
-            <User size={16} className="text-gray-600" />
-          </button>
-        )}
       </div>
     </div>
   );

@@ -20,11 +20,22 @@ function initSQLite() {
       generated_draft TEXT,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     );
-    
+
     CREATE TABLE IF NOT EXISTS admin_logs (
       id TEXT PRIMARY KEY,
       action TEXT,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS complaints (
+      id TEXT PRIMARY KEY,
+      issueType TEXT,
+      lat REAL,
+      lng REAL,
+      imageUrl TEXT,
+      urgency TEXT,
+      status TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
   console.log('Successfully initialized SQLite Database.');
@@ -40,9 +51,33 @@ function logAdminAction(id, action) {
   stmt.run(id, action);
 }
 
+function saveComplaint(id, issueType, lat, lng, imageUrl, urgency, status) {
+  const stmt = db.prepare('INSERT INTO complaints (id, issueType, lat, lng, imageUrl, urgency, status) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  stmt.run(id, issueType, lat, lng, imageUrl, urgency, status);
+}
+
+function updateComplaint(id, updates) {
+  const keys = Object.keys(updates);
+  if (keys.length === 0) return;
+
+  const setClause = keys.map(key => `${key} = ?`).join(', ');
+  const values = [...Object.keys(updates).map(key => updates[key]), id];
+
+  const stmt = db.prepare(`UPDATE complaints SET ${setClause} WHERE id = ?`);
+  stmt.run(...values);
+}
+
+function getRtiDrafts(limit = 50) {
+  const stmt = db.prepare(`SELECT id, applicant_details, authority_type, generated_draft, timestamp FROM rti_drafts ORDER BY timestamp DESC LIMIT ?`);
+  return stmt.all(limit);
+}
+
 module.exports = {
   db,
   initSQLite,
   saveRtiDraft,
-  logAdminAction
+  logAdminAction,
+  saveComplaint,
+  updateComplaint,
+  getRtiDrafts
 };
