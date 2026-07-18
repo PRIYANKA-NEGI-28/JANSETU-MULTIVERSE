@@ -326,9 +326,9 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
           <div className="relative bg-gray-900 border border-gray-700 rounded-2xl overflow-hidden" style={{ height: 480, zIndex: 0 }}>
             <MapContainer 
               center={[28.6139, 77.2090]} 
-              zoom={11} 
-              minZoom={10}
-              maxBounds={[[28.4, 76.8], [28.9, 77.5]]}
+              zoom={5} 
+              minZoom={4}
+              maxBounds={[[6.4, 68.7], [35.5, 97.2]]}
               style={{ height: '100%', width: '100%', background: '#111827' }}
               zoomControl={false}
               attributionControl={false}

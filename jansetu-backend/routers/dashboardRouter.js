@@ -39,13 +39,13 @@ router.post('/', async (req, res) => {
         return res.json({ success: true, data: {
           id: c.id,
           complaint_number: c.complaint_number,
-          citizenName: c.citizen_name,
-          citizenPhone: c.citizen_phone,
-          issueType: c.issueType,
+          citizen_name: c.citizen_name,
+          citizen_phone: c.citizen_phone,
+          issue_type: c.issueType,
           department: c.department,
           area: c.area,
           ward: c.ward,
-          rawText: c.raw_text,
+          raw_text: c.raw_text,
           summary: c.summary,
           language: c.language,
           lat: c.lat,
@@ -53,7 +53,7 @@ router.post('/', async (req, res) => {
           imageUrl: c.imageUrl,
           urgency: c.urgency,
           status: c.status,
-          createdAt: c.createdAt,
+          created_at: c.createdAt,
           similar_count: 0
         }});
       }
@@ -62,8 +62,8 @@ router.post('/', async (req, res) => {
     if (action === 'getUserComplaints') {
       try {
         const query = `
-          MATCH (c:Complaint {citizenPhone: $phone})
-          RETURN c ORDER BY c.createdAt DESC
+          MATCH (c:Complaint {citizen_phone: $phone})
+          RETURN c ORDER BY c.created_at DESC
         `;
         const result = await runQuery(query, params);
         const complaints = result.records.map(r => r.get('c').properties);
@@ -71,7 +71,27 @@ router.post('/', async (req, res) => {
       } catch (err) {
         console.log('Neo4j getUserComplaints failed, using SQLite fallback');
         const complaints = getComplaintsByPhone(params.phone);
-        return res.json({ success: true, data: complaints });
+        const mapped = complaints.map(c => ({
+          id: c.id,
+          complaint_number: c.complaint_number,
+          citizen_name: c.citizen_name,
+          citizen_phone: c.citizen_phone,
+          issue_type: c.issueType,
+          department: c.department,
+          area: c.area,
+          ward: c.ward,
+          raw_text: c.raw_text,
+          summary: c.summary,
+          language: c.language,
+          lat: c.lat,
+          lng: c.lng,
+          imageUrl: c.imageUrl,
+          urgency: c.urgency,
+          status: c.status,
+          created_at: c.createdAt,
+          similar_count: 0
+        }));
+        return res.json({ success: true, data: mapped });
       }
     }
     
