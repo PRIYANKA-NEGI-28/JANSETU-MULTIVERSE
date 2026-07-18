@@ -46,6 +46,21 @@ function initSQLite() {
       status TEXT,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS sensor_alerts (
+      id TEXT PRIMARY KEY,
+      device_id TEXT,
+      type TEXT,
+      status TEXT,
+      lat REAL,
+      lng REAL,
+      ward TEXT,
+      department TEXT,
+      description TEXT,
+      severity TEXT,
+      area TEXT,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
   console.log('Successfully initialized SQLite Database.');
 }
@@ -96,6 +111,23 @@ function getComplaintByNumber(number) {
   return stmt.get(number);
 }
 
+function saveSensorAlert(alert) {
+  const stmt = db.prepare(`
+    INSERT INTO sensor_alerts (
+      id, device_id, type, status, lat, lng, ward, department, description, severity, area, createdAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  stmt.run(
+    alert.id, alert.device_id, alert.type, alert.status, alert.lat, alert.lng,
+    alert.ward, alert.department, alert.description, alert.severity, alert.area, alert.createdAt
+  );
+  return alert;
+}
+
+function getSensorAlerts() {
+  return db.prepare(`SELECT * FROM sensor_alerts ORDER BY createdAt DESC`).all();
+}
+
 module.exports = {
   db,
   initSQLite,
@@ -106,5 +138,7 @@ module.exports = {
   getRtiDrafts,
   getAllComplaints,
   getComplaintsByPhone,
-  getComplaintByNumber
+  getComplaintByNumber,
+  saveSensorAlert,
+  getSensorAlerts
 };

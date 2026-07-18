@@ -1,4 +1,4 @@
-import { Zap, Shield, BarChart2, FileText, User, LogOut, Languages, MapPin, Scale } from 'lucide-react';
+import { Zap, Shield, BarChart2, FileText, User, LogOut, Languages, MapPin, Scale, Cpu } from 'lucide-react';
 import type { AuthUser } from '../lib/auth';
 import type { Page } from '../types';
 import { useLang } from '../lib/langContext';
@@ -20,11 +20,12 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout }: Navb
     { label: T.nav_rti, page: 'rti', icon: <Scale size={16} /> },
     { label: T.nav_file, page: 'submit', icon: <FileText size={16} /> },
     { label: T.nav_admin, page: 'admin', icon: <BarChart2 size={16} /> },
+    { label: 'IoT Monitor', page: 'iot', icon: <Cpu size={16} /> },
   ];
 
   const links = user?.role === 'admin'
-    ? allLinks.filter(link => link.page === 'admin' || link.page === 'hazardmap')
-    : allLinks.filter(link => link.page !== 'admin');
+    ? allLinks.filter(link => link.page === 'admin' || link.page === 'hazardmap' || link.page === 'iot')
+    : allLinks.filter(link => link.page !== 'admin' && link.page !== 'iot');
 
   const displayName = user?.name || 'User';
 

@@ -12,6 +12,7 @@ import TrackComplaint from './pages/TrackComplaint';
 import AdminDashboard from './pages/AdminDashboard';
 import HazardMap from './pages/HazardMap';
 import RTIDrafter from './pages/RTIDrafter';
+import IoTDashboard from './pages/IoTDashboard';
 import type { Page } from './types';
 import { DashboardProvider } from './contexts/DashboardContext';
 
@@ -47,6 +48,11 @@ function AuthenticatedApp({
         return <AdminDashboard onAdminLogout={() => navigate('home')} />;
       case 'hazardmap': return <HazardMap onNavigate={navigate} user={user} />;
       case 'rti': return <RTIDrafter onNavigate={navigate} />;
+      case 'iot': 
+        if (user?.role !== 'admin') {
+          return <Home onNavigate={navigate} user={user} />;
+        }
+        return <IoTDashboard onNavigate={navigate} />;
       default: return <Home onNavigate={navigate} user={user} />;
     }
   }

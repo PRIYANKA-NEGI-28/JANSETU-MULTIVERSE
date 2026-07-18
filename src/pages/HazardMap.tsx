@@ -450,7 +450,7 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
               <span className="ml-auto text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">{T.hazard_priority}</span>
             </div>
             <div className="divide-y divide-gray-800">
-              {[...clusters]
+              {[...visibleClusters]
                 .sort((a, b) => {
                   const ord = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
                   return (ord[b.severity] - ord[a.severity]) || b.count - a.count;
