@@ -42,17 +42,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         {/* Logo & Branding */}
         <ScrollReveal direction="down" delay={100}>
           <div className="text-center mb-8">
-            <div className="flex flex-col items-center mb-4">
-              <img
-                src="/images/logo.png"
-                alt="JanSetu Multiverse"
-                className="w-20 h-20 object-contain mb-3 transition-transform duration-300 hover:rotate-12"
-              />
-              <div className="text-center">
-                <div className="font-black text-3xl text-gray-900">
-                  <span className="text-orange-500">Jan</span>Setu
-                </div>
-                <div className="text-xs text-green-600 font-bold uppercase tracking-widest mt-1">Multiverse</div>
+            <div className="inline-flex items-center gap-3 mb-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg transition-transform duration-300 hover:rotate-12">
+                <span className="text-white font-black text-xl">JS</span>
+              </div>
+              <div className="text-left">
+                <div className="font-black text-3xl text-gray-900">JanSetu</div>
+                <div className="text-xs text-orange-500 font-bold uppercase tracking-widest">Multiverse</div>
               </div>
             </div>
             <p className="text-gray-500 text-sm mt-2">Sign in to access the civic intelligence platform</p>
