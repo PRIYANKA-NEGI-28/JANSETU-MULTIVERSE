@@ -12,7 +12,8 @@ interface MobileHeaderProps {
 
 export default function MobileHeader({ currentPage, onNavigate, user, onLogout }: MobileHeaderProps) {
   const { lang, toggleLang, T } = useLang();
-  const isHome = currentPage === 'home';
+  const isHome = currentPage === 'home' || (user?.role === 'admin' && currentPage === 'admin');
+  const goHome = () => onNavigate(user?.role === 'admin' ? 'admin' : 'home');
   const title = currentPage === 'submit' ? T.nav_file
     : currentPage === 'track' ? T.nav_track
     : currentPage === 'admin' ? T.nav_admin
@@ -25,7 +26,7 @@ export default function MobileHeader({ currentPage, onNavigate, user, onLogout }
     <div className="flex items-center justify-between h-14 px-4 bg-white border-b border-gray-100">
       {/* Left */}
       {isHome ? (
-        <button onClick={() => onNavigate('home')}>
+        <button onClick={goHome}>
           <img
             src="/images/ChatGPT_Image_Jun_24,_2026,_08_18_26_PM copy copy.png"
             alt="JanSetu"
@@ -34,7 +35,7 @@ export default function MobileHeader({ currentPage, onNavigate, user, onLogout }
         </button>
       ) : (
         <button
-          onClick={() => onNavigate('home')}
+          onClick={goHome}
           className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
         >
           <ChevronLeft size={20} className="text-gray-700" />

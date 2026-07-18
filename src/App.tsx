@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { AuthUser } from './lib/auth';
 import { LangProvider } from './lib/langContext';
 import { LocationProvider, useLocation } from './contexts/LocationContext';
@@ -93,8 +93,27 @@ function AuthenticatedApp({
 }
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('home');
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    const savedUser = localStorage.getItem('jansetu_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    const savedUser = localStorage.getItem('jansetu_user');
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      return parsed.role === 'admin' ? 'admin' : 'home';
+    }
+    return 'home';
+  });
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('jansetu_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('jansetu_user');
+    }
+  }, [user]);
 
   function navigate(page: Page) {
     setCurrentPage(page);
@@ -110,7 +129,10 @@ export default function App() {
   if (!user) {
     return (
       <LangProvider>
-        <LoginPage onLogin={(u) => setUser(u)} />
+        <LoginPage onLogin={(u) => {
+          setUser(u);
+          setCurrentPage(u.role === 'admin' ? 'admin' : 'home');
+        }} />
       </LangProvider>
     );
   }

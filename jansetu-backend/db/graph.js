@@ -123,14 +123,30 @@ async function createComplaintNode(data) {
 
   // Also save to SQLite for redundancy
   try {
+    const complaintNumber = data.complaint_number || `JS-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(Math.random()*9000)+1000}`;
+    const citizenName = data.citizenName || 'Anonymous';
+    const issueType = data.issueType || 'General';
+    const department = data.department || 'General Administration';
+    const area = data.area || 'Unknown Area';
+    const ward = data.ward || 'Unknown Ward';
+    const rawText = data.rawText || '';
+    const summary = data.summary || '';
+    const language = data.language || 'en';
+    const lat = parseFloat(data.lat) || 0;
+    const lng = parseFloat(data.lng) || 0;
+    const imageUrl = data.imageUrl || null;
+    const urgency = data.urgency || 'MEDIUM';
+    const status = data.status || 'PENDING';
+    const createdAt = new Date().toISOString();
+
     saveComplaint(
       data.id,
-      data.issueType || null,
-      parseFloat(data.lat) || 0,
-      parseFloat(data.lng) || 0,
-      data.imageUrl || null,
-      data.urgency || 'MEDIUM',
-      data.status || 'PENDING'
+      issueType,
+      lat,
+      lng,
+      imageUrl,
+      urgency,
+      status
     );
   } catch (sqliteError) {
     console.error('Failed to save complaint to SQLite:', sqliteError);

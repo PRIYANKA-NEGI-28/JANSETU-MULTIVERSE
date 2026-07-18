@@ -291,7 +291,7 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
       
       // We will grab the file from the camera input below (if the user uploaded one here, although in this component, photo wasn't previously in form state. I'll add a file input state and append it.)
       if (photoFile) {
-        formData.append('photo', photoFile);
+        formData.append('image_file', photoFile);
       }
 
       const response = await fetch('/api/complaint', {

@@ -13,7 +13,7 @@ interface NavbarProps {
 export default function Navbar({ currentPage, onNavigate, user, onLogout }: NavbarProps) {
   const { lang, toggleLang, T } = useLang();
 
-  const links: { label: string; page: Page; icon: React.ReactNode }[] = [
+  const allLinks: { label: string; page: Page; icon: React.ReactNode }[] = [
     { label: T.nav_home, page: 'home', icon: <Zap size={16} /> },
     { label: T.nav_file, page: 'submit', icon: <FileText size={16} /> },
     { label: T.nav_track, page: 'track', icon: <Shield size={16} /> },
@@ -21,9 +21,15 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout }: Navb
     { label: T.nav_rti, page: 'rti', icon: <Scale size={16} /> },
   ];
 
+<<<<<<< HEAD
   if (user?.role === 'admin') {
     links.push({ label: T.nav_admin, page: 'admin', icon: <BarChart2 size={16} /> });
   }
+=======
+  const links = user?.role === 'admin'
+    ? allLinks.filter(link => link.page === 'admin' || link.page === 'hazardmap')
+    : allLinks;
+>>>>>>> 751ebf6 (admin-page)
 
   const displayName = user?.name || 'User';
 
@@ -83,12 +89,14 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout }: Navb
                 </button>
               </div>
 
-            <button
-              onClick={() => onNavigate('submit')}
-              className="px-3 sm:px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md"
-            >
-              {T.nav_file_btn}
-            </button>
+            {user?.role !== 'admin' && (
+              <button
+                onClick={() => onNavigate('submit')}
+                className="px-3 sm:px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md"
+              >
+                {T.nav_file_btn}
+              </button>
+            )}
           </div>
         </div>
       </div>

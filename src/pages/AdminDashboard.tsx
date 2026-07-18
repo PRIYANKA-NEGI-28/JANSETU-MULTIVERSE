@@ -226,13 +226,6 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
               <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
               {T.admin_refresh}
             </button>
-            <button
-              onClick={onAdminLogout}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-700 transition-all"
-            >
-              <LogOut size={15} />
-              {T.admin_exit}
-            </button>
           </div>
         </div>
 

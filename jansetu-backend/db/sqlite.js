@@ -29,7 +29,16 @@ function initSQLite() {
 
     CREATE TABLE IF NOT EXISTS complaints (
       id TEXT PRIMARY KEY,
+      complaint_number TEXT,
+      citizen_name TEXT,
+      citizen_phone TEXT,
       issueType TEXT,
+      department TEXT,
+      area TEXT,
+      ward TEXT,
+      raw_text TEXT,
+      summary TEXT,
+      language TEXT,
       lat REAL,
       lng REAL,
       imageUrl TEXT,
@@ -51,9 +60,9 @@ function logAdminAction(id, action) {
   stmt.run(id, action);
 }
 
-function saveComplaint(id, issueType, lat, lng, imageUrl, urgency, status) {
-  const stmt = db.prepare('INSERT INTO complaints (id, issueType, lat, lng, imageUrl, urgency, status) VALUES (?, ?, ?, ?, ?, ?, ?)');
-  stmt.run(id, issueType, lat, lng, imageUrl, urgency, status);
+function saveComplaint(id, complaint_number, citizen_name, issueType, department, area, ward, raw_text, summary, language, lat, lng, imageUrl, urgency, status, createdAt) {
+  const stmt = db.prepare('INSERT INTO complaints (id, complaint_number, citizen_name, issueType, department, area, ward, raw_text, summary, language, lat, lng, imageUrl, urgency, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  stmt.run(id, complaint_number, citizen_name, issueType, department, area, ward, raw_text, summary, language, lat, lng, imageUrl, urgency, status, createdAt);
 }
 
 function updateComplaint(id, updates) {
@@ -72,6 +81,11 @@ function getRtiDrafts(limit = 50) {
   return stmt.all(limit);
 }
 
+function getAllComplaints() {
+  const stmt = db.prepare(`SELECT * FROM complaints ORDER BY createdAt DESC`);
+  return stmt.all();
+}
+
 module.exports = {
   db,
   initSQLite,
@@ -79,5 +93,6 @@ module.exports = {
   logAdminAction,
   saveComplaint,
   updateComplaint,
-  getRtiDrafts
+  getRtiDrafts,
+  getAllComplaints
 };

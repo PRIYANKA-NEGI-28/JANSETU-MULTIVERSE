@@ -14,6 +14,7 @@ const complaintRouter = require('./routers/complaintRouter');
 const sensorRouter = require('./routers/sensorRouter');
 const dashboardRouter = require('./routers/dashboardRouter');
 const drafterRouter = require('./routers/drafterRouter');
+const adminRouter = require('./routers/adminRouter');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,24 +29,50 @@ app.use('/api/complaint', complaintRouter);
 app.use('/api/sensor', sensorRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/drafter', drafterRouter);
+app.use('/api/admin', adminRouter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'JanSetu Multiverse backend is running.' });
 });
 
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: 'Not Found' });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled Error:', err);
+  res.status(500).json({ success: false, error: 'Internal Server Error' });
+});
+
+
 // Start Server
 async function startServer() {
   // Initialize Dual-Database split
   initSQLite();
-  
+
   // RUST-PROOF NEO4J INTEGRATION: Test driver connection before starting the server
   await verifyConnection();
-  
+
   // Listen on '0.0.0.0' to permit external physical edge hardware devices on the local network
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`JanSetu Multiverse backend engine listening at http://0.0.0.0:${PORT}`);
   });
 }
 
+// Global error handling
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  // Don't exit the process - let the server continue running
+  // process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process - let the server continue running
+});
+
+// Start the server
 startServer();

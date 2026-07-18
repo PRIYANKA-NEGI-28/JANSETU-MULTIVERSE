@@ -246,7 +246,7 @@ export default function HazardMap({ onNavigate }: HazardMapProps) {
   const typeInfo = (type: string) => HAZARD_TYPES.find(t => t.value === type) || HAZARD_TYPES[0];
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-gray-950 pt-20">
       {/* Header */}
       <div className="bg-gray-950 border-b border-gray-800 px-4 sm:px-6 lg:px-8 py-6">
         <div className="max-w-7xl mx-auto flex flex-wrap items-start justify-between gap-4">

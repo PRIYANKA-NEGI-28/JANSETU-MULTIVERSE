@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { runQuery } = require('../db/graph');
-const { getRtiDrafts } = require('../db/sqlite');
+const { getRtiDrafts, getAllComplaints } = require('../db/sqlite');
 
 // POST /api/dashboard - RPC endpoint for Neo4j proxy operations
 router.post('/', async (req, res) => {
@@ -45,7 +45,7 @@ router.get('/', async (req, res) => {
 
     // Initialize default values for Neo4j data
     let activeList = [];
-    let stats = { total: 0, pending: 0, resolved: 0, escalated: 0 };
+    let stats = { total: 0, pending: 0, resolved: 0, escalated: 0, inProgress: 0 };
     let criticalZones = [];
 
     // Try to get Neo4j data, but don't fail if Neo4j is unavailable
@@ -63,7 +63,8 @@ router.get('/', async (req, res) => {
           count(n) AS total,
           sum(CASE WHEN n.status = 'PENDING' OR n.status = 'FAULT' THEN 1 ELSE 0 END) AS pending,
           sum(CASE WHEN n.status = 'RESOLVED' THEN 1 ELSE 0 END) AS resolved,
-          sum(CASE WHEN n.status = 'ESCALATED' THEN 1 ELSE 0 END) AS escalated
+          sum(CASE WHEN n.status = 'ESCALATED' THEN 1 ELSE 0 END) AS escalated,
+          sum(CASE WHEN n.status = 'IN_PROGRESS' OR n.status = 'ASSIGNED' OR n.status = 'FAULT' THEN 1 ELSE 0 END) AS inProgress
       `;
 
       // 3. Aggregate cluster grouping relationships to identify "Critical Repair Zones"
@@ -88,7 +89,8 @@ router.get('/', async (req, res) => {
         total: statsRecord.get('total').toNumber(),
         pending: statsRecord.get('pending').toNumber(),
         resolved: statsRecord.get('resolved').toNumber(),
-        escalated: statsRecord.get('escalated').toNumber()
+        escalated: statsRecord.get('escalated').toNumber(),
+        inProgress: statsRecord.get('inProgress').toNumber()
       };
       criticalZones = clustersResult.records.map(r => ({
         lat: r.get('lat'),
@@ -98,6 +100,30 @@ router.get('/', async (req, res) => {
     } catch (neo4jError) {
       // Log Neo4j error but continue with SQLite data
       console.warn('Neo4j query failed, continuing with SQLite data only:', neo4jError.message);
+
+      const sqliteComplaints = getAllComplaints();
+      activeList = sqliteComplaints.map(c => ({
+         id: c.id,
+         complaint_number: c.id.substring(0, 15),
+         citizen_name: 'Local Citizen (Offline)',
+         issue_type: c.issueType || 'General Complaint',
+         department: 'Offline Mode Dept',
+         area: 'Local Storage',
+         ward: 'N/A',
+         status: c.status || 'PENDING',
+         urgency: c.urgency || 'MEDIUM',
+         lat: c.lat,
+         lng: c.lng,
+         similar_count: 0
+      }));
+
+      stats = {
+         total: activeList.length,
+         pending: activeList.filter(c => c.status === 'PENDING').length,
+         resolved: activeList.filter(c => c.status === 'RESOLVED').length,
+         escalated: activeList.filter(c => c.status === 'ESCALATED').length,
+         inProgress: activeList.filter(c => c.status === 'IN_PROGRESS' || c.status === 'ASSIGNED').length
+      };
     }
 
     res.status(200).json({

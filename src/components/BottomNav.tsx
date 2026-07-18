@@ -4,6 +4,8 @@ import type { Page } from '../types';
 import { useLang } from '../lib/langContext';
 import type { AuthUser } from '../lib/auth';
 
+import type { AuthUser } from '../lib/auth';
+
 interface BottomNavProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
@@ -22,12 +24,17 @@ export default function BottomNav({ currentPage, onNavigate, user }: BottomNavPr
   const { lang, toggleLang, T } = useLang();
   const isMore = currentPage === 'rti' || currentPage === 'admin';
 
-  const mainTabs = [
+  const allTabs = [
     { page: 'home' as Page, icon: <Home size={21} />, label: T.nav_home },
     { page: 'submit' as Page, icon: <PenLine size={21} />, label: T.nav_file },
     { page: 'track' as Page, icon: <Search size={21} />, label: T.nav_track },
     { page: 'hazardmap' as Page, icon: <MapPin size={21} />, label: T.nav_hazard_map },
+    { page: 'admin' as Page, icon: <BarChart2 size={21} />, label: T.nav_admin },
   ];
+  
+  const mainTabs = user?.role === 'admin' 
+    ? allTabs.filter(tab => tab.page === 'admin' || tab.page === 'hazardmap')
+    : allTabs.filter(tab => tab.page !== 'admin');
 
   // Close sheet on navigation
   useEffect(() => { setMoreOpen(false); }, [currentPage]);
@@ -128,19 +135,21 @@ export default function BottomNav({ currentPage, onNavigate, user }: BottomNavPr
         })}
 
         {/* More tab */}
-        <button
-          onClick={() => setMoreOpen(v => !v)}
-          className="flex-1 flex flex-col items-center justify-center gap-[3px] transition-all"
-        >
-          <div className={`w-10 h-8 rounded-2xl flex items-center justify-center transition-all ${
-            isMore || moreOpen ? 'bg-orange-500 text-white shadow-md shadow-orange-200' : 'text-gray-400'
-          }`}>
-            <Grid3x3 size={21} />
-          </div>
-          <span className={`text-[10px] font-semibold leading-none ${isMore || moreOpen ? 'text-orange-600' : 'text-gray-400'}`}>
-            {T.nav_more}
-          </span>
-        </button>
+        {user?.role !== 'admin' && (
+          <button
+            onClick={() => setMoreOpen(v => !v)}
+            className="flex-1 flex flex-col items-center justify-center gap-[3px] transition-all"
+          >
+            <div className={`w-10 h-8 rounded-2xl flex items-center justify-center transition-all ${
+              isMore || moreOpen ? 'bg-orange-500 text-white shadow-md shadow-orange-200' : 'text-gray-400'
+            }`}>
+              <Grid3x3 size={21} />
+            </div>
+            <span className={`text-[10px] font-semibold leading-none ${isMore || moreOpen ? 'text-orange-600' : 'text-gray-400'}`}>
+              {T.nav_more}
+            </span>
+          </button>
+        )}
       </div>
     </>
   );
