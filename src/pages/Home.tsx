@@ -420,10 +420,16 @@ export default function Home({ onNavigate, user }: HomeProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <ScrollReveal direction="up" className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 group cursor-pointer">
-                <span className="text-white font-black text-lg tracking-tight">Jan</span>
-                <span className="text-orange-500 font-black text-lg tracking-tight transition-transform duration-300 group-hover:translate-x-0.5">Setu</span>
-              </div>
+              <button 
+                onClick={() => onNavigate('home')} 
+                className="flex items-center transition-transform duration-200 hover:scale-105 active:scale-95"
+              >
+                <img
+                  src="/images/ChatGPT_Image_Jun_24,_2026,_08_18_26_PM copy copy.png"
+                  alt="JanSetu"
+                  className="h-10 w-auto object-contain"
+                />
+              </button>
             </div>
             <div className="flex items-center gap-6">
               <button 
