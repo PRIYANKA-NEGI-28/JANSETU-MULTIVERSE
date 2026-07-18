@@ -195,13 +195,17 @@ export default function App() {
       {showPreloader && (
         <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gray-950 transition-opacity duration-500 ${fadePreloader ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <div className="text-center">
-            <div className="inline-flex items-center gap-3 mb-6 animate-pulse">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-2xl">
-                <span className="text-white font-black text-2xl">JS</span>
-              </div>
-              <div className="text-left">
-                <div className="font-black text-4xl text-white tracking-tight">JanSetu</div>
-                <div className="text-xs text-orange-500 font-bold uppercase tracking-widest">Multiverse</div>
+            <div className="flex flex-col items-center mb-6 animate-pulse">
+              <img
+                src="/images/logo.png"
+                alt="JanSetu Multiverse"
+                className="w-24 h-24 object-contain mb-4"
+              />
+              <div className="text-center">
+                <div className="font-black text-4xl text-white tracking-tight">
+                  <span className="text-orange-500">Jan</span>Setu
+                </div>
+                <div className="text-xs text-green-500 font-bold uppercase tracking-widest mt-1">Multiverse</div>
               </div>
             </div>
             {/* Elegant spinner */}
