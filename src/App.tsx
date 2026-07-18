@@ -15,6 +15,7 @@ import RTIDrafter from './pages/RTIDrafter';
 import IoTDashboard from './pages/IoTDashboard';
 import type { Page } from './types';
 import { DashboardProvider } from './contexts/DashboardContext';
+import TricolorWaves from './components/TricolorWaves';
 
 function AuthenticatedApp({
   currentPage,
@@ -72,6 +73,7 @@ function AuthenticatedApp({
     <DashboardProvider>
       <LangProvider>
         <div className="min-h-screen bg-gray-50 bg-dot-mesh">
+          <TricolorWaves />
           {/* Desktop: full-width fixed Navbar */}
           <div className="hidden md:block">
             <Navbar

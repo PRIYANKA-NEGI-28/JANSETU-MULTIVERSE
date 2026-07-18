@@ -302,4 +302,29 @@
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.4);
   }
+
+  /* Tricolor Ambient Flowing Waves */
+  @keyframes flow-wave {
+    0%, 100% {
+      transform: translateX(0) scaleY(1) rotate(0deg);
+    }
+    50% {
+      transform: translateX(-10%) scaleY(1.05) rotate(0.5deg);
+    }
+  }
+
+  .animate-wave-slow {
+    animation: flow-wave 28s ease-in-out infinite;
+    transform-origin: center bottom;
+  }
+  .animate-wave-medium {
+    animation: flow-wave 20s ease-in-out infinite;
+    animation-delay: -5s;
+    transform-origin: center bottom;
+  }
+  .animate-wave-fast {
+    animation: flow-wave 14s ease-in-out infinite;
+    animation-delay: -10s;
+    transform-origin: center bottom;
+  }
 }

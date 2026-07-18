@@ -3,6 +3,7 @@ import { Lock, Mail, AlertTriangle, Loader, LogIn, Shield, User } from 'lucide-r
 import { authenticate } from '../lib/auth';
 import type { AuthUser } from '../lib/auth';
 import ScrollReveal from '../components/ScrollReveal';
+import TricolorWaves from '../components/TricolorWaves';
 
 interface LoginPageProps {
   onLogin: (user: AuthUser) => void;
@@ -36,7 +37,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-green-50 flex items-center justify-center px-4 bg-dot-mesh">
-      <div className="w-full max-w-md">
+      <TricolorWaves />
+      <div className="w-full max-w-md relative z-10">
         {/* Logo & Branding */}
         <ScrollReveal direction="down" delay={100}>
           <div className="text-center mb-8">
