@@ -10,8 +10,10 @@ router.post('/', upload.single('image_file'), async (req, res) => {
   try {
     const { issueType, urgency } = req.body;
     // Enforce standard default safety values for lat/lng (e.g., core municipality coordinates)
-    const lat = req.body.lat !== undefined ? req.body.lat : 28.6139; // New Delhi Lat fallback
-    const lng = req.body.lng !== undefined ? req.body.lng : 77.2090; // New Delhi Lng fallback
+    const parsedLat = parseFloat(req.body.lat);
+    const lat = !isNaN(parsedLat) ? parsedLat : 28.6139; // New Delhi Lat fallback
+    const parsedLng = parseFloat(req.body.lng);
+    const lng = !isNaN(parsedLng) ? parsedLng : 77.2090; // New Delhi Lng fallback
     
     const imageUrl = req.file ? req.file.path : (req.body.imageUrl || null);
     const id = crypto.randomUUID();

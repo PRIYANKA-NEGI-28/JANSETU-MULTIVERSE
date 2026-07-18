@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Brain, MapPin, AlertTriangle, CheckCircle, ArrowRight, Loader,
-  FileText, Copy, Mic, MicOff, Volume2, ChevronDown, LogIn, Download
+  FileText, Copy, Mic, MicOff, Volume2, LogIn, Download
 } from 'lucide-react';
 import { analyzeComplaint } from '../lib/aiAnalyzer';
-import { LOCATIONS, CITY_OPTIONS } from '../lib/locations';
 import type { Page } from '../types';
 import type { AuthUser } from '../lib/auth';
 import { useLang } from '../lib/langContext';
@@ -12,6 +11,8 @@ import { useLang } from '../lib/langContext';
 interface SubmitComplaintProps {
   onNavigate: (page: Page) => void;
   user: AuthUser | null;
+  location: { lat: number | null; lng: number | null; permission: string };
+  onRequestLocation: () => void;
 }
 
 const URGENCY_CONFIG = {
@@ -62,15 +63,12 @@ interface SpeechRecognitionErrorEvent extends Event {
   error: string;
 }
 
-export default function SubmitComplaint({ onNavigate, user }: SubmitComplaintProps) {
+export default function SubmitComplaint({ onNavigate, user, location, onRequestLocation }: SubmitComplaintProps) {
   const { T } = useLang();
   const [form, setForm] = useState({
     name: user?.name || '',
     phone: '',
     text: '',
-    area: '',
-    ward: '',
-    city: 'Delhi',
   });
   const [analysis, setAnalysis] = useState<ReturnType<typeof analyzeComplaint> | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -90,8 +88,6 @@ export default function SubmitComplaint({ onNavigate, user }: SubmitComplaintPro
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const MAX_RECORDING_TIME = 60;
 
-  const filteredLocations = LOCATIONS.filter(l => l.city === form.city);
-
   useEffect(() => {
     if (user?.name) {
       setForm(f => ({ ...f, name: user.name }));
@@ -100,11 +96,6 @@ export default function SubmitComplaint({ onNavigate, user }: SubmitComplaintPro
       setForm(f => ({ ...f, phone: user.phone }));
     }
   }, [user]);
-
-  function handleAreaChange(area: string) {
-    const loc = LOCATIONS.find(l => l.area === area);
-    setForm(f => ({ ...f, area, ward: loc?.ward || '' }));
-  }
 
   function handleTextChange(text: string) {
     setForm(f => ({ ...f, text }));
@@ -206,13 +197,13 @@ export default function SubmitComplaint({ onNavigate, user }: SubmitComplaintPro
     const date = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
     return `To,
 The ${analysis.department}
-${form.ward || 'Local Ward Office'}, ${form.city} Municipal Authority
+Local Ward Office, Municipal Authority
 
 Subject: Formal Complaint Regarding ${analysis.issue_type} — Urgent Action Required
 
 Respected Sir/Madam,
 
-I, ${form.name || 'A Concerned Citizen'}, residing in ${form.area || 'the mentioned area'}, ${form.ward || form.city}, wish to bring to your notice the following civic issue affecting our locality.
+I, ${form.name || 'A Concerned Citizen'}, residing in the mentioned area, wish to bring to your notice the following civic issue affecting our locality.
 
 Issue Category: ${analysis.issue_type}
 Urgency Level: ${analysis.urgency}
@@ -228,8 +219,7 @@ I look forward to a prompt response and timely resolution.
 Yours faithfully,
 ${form.name || 'Concerned Citizen'}
 ${form.phone ? 'Contact: ' + form.phone : ''}
-Date: ${date}
-Location: ${form.area}, ${form.ward}, ${form.city}`;
+Date: ${date}`;
   }
 
   function generateHindiLetter(): string {
@@ -238,13 +228,13 @@ Location: ${form.area}, ${form.ward}, ${form.city}`;
     const urgencyHindi: Record<string, string> = { LOW: 'कम', MEDIUM: 'मध्यम', HIGH: 'अधिक', CRITICAL: 'अत्यंत आवश्यक' };
     return `सेवा में,
 ${analysis.department}
-${form.ward || 'स्थानीय वार्ड कार्यालय'}, ${form.city} नगर पालिका
+स्थानीय वार्ड कार्यालय, नगर पालिका
 
 विषय: ${analysis.issue_type} के संबंध में शिकायत — तत्काल कार्रवाई हेतु
 
 महोदय/महोदया,
 
-मैं, ${form.name || 'एक चिंतित नागरिक'}, ${form.area || 'उक्त क्षेत्र'}, ${form.ward || form.city} का/की निवासी, आपके संज्ञान में निम्नलिखित नागरिक समस्या लाना चाहता/चाहती हूँ जो हमारे क्षेत्र को प्रभावित कर रही है।
+मैं, ${form.name || 'एक चिंतित नागरिक'}, उक्त क्षेत्र का/की निवासी, आपके संज्ञान में निम्नलिखित नागरिक समस्या लाना चाहता/चाहती हूँ जो हमारे क्षेत्र को प्रभावित कर रही है।
 
 समस्या का प्रकार: ${analysis.issue_type}
 तात्कालिकता: ${urgencyHindi[analysis.urgency] || analysis.urgency}
@@ -260,8 +250,7 @@ ${form.ward || 'स्थानीय वार्ड कार्यालय'}
 आपका/आपकी विश्वासपात्र,
 ${form.name || 'एक नागरिक'}
 ${form.phone ? 'संपर्क: ' + form.phone : ''}
-दिनांक: ${date}
-स्थान: ${form.area}, ${form.ward}, ${form.city}`;
+दिनांक: ${date}`;
   }
 
   function downloadLetter(content: string, filename: string) {
@@ -277,7 +266,7 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
   }
 
   async function handleSubmit() {
-    if (!form.name || !form.text || !form.area || !form.ward) {
+    if (!form.name || !form.text) {
       setError(T.submit_error_fields);
       return;
     }
@@ -296,8 +285,8 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
       formData.append('summary', analysis.summary);
       formData.append('urgency', analysis.urgency);
       formData.append('department', analysis.department);
-      formData.append('area', form.area);
-      formData.append('ward', form.ward);
+      formData.append('lat', String(location.lat ?? 28.6139));
+      formData.append('lng', String(location.lng ?? 77.2090));
       if (user?.id) formData.append('userId', user.id);
       
       // We will grab the file from the camera input below (if the user uploaded one here, although in this component, photo wasn't previously in form state. I'll add a file input state and append it.)
@@ -369,7 +358,7 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
                 Track Your Complaint <ArrowRight size={16} />
               </button>
               <button
-                onClick={() => { setSubmitted(null); setForm({ name: user?.name || '', phone: '', text: '', area: '', ward: '', city: 'Delhi' }); setAnalysis(null); }}
+                onClick={() => { setSubmitted(null); setForm({ name: user?.name || '', phone: '', text: '' }); setAnalysis(null); }}
                 className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all"
               >
                 {T.submit_file_another}
@@ -644,68 +633,6 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
             </div>
           )}
 
-          {/* Location */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <h2 className="font-bold text-gray-900 mb-5 text-lg flex items-center gap-2">
-              <span className="w-7 h-7 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center font-bold">3</span>
-              {T.submit_step3}
-            </h2>
-
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">{T.submit_city} <span className="text-red-500">*</span></label>
-              <div className="flex gap-2">
-                {CITY_OPTIONS.filter(c => c !== 'All').map(city => (
-                  <button
-                    key={city}
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, city, area: '', ward: '' }))}
-                    className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
-                      form.city === city
-                        ? 'border-orange-500 bg-orange-50 text-orange-700'
-                        : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                    }`}
-                  >
-                    {city}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  {T.submit_area} <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={form.area}
-                    onChange={e => handleAreaChange(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white appearance-none pr-8"
-                  >
-                    <option value="">{T.submit_select_area} {form.city}</option>
-                    {filteredLocations.map(l => <option key={l.area} value={l.area}>{l.area}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-4 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{T.submit_ward}</label>
-                <input
-                  type="text"
-                  value={form.ward}
-                  readOnly
-                  placeholder={T.submit_ward_auto}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm bg-gray-50 text-gray-600 cursor-default"
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
-              <MapPin size={12} />
-              {T.submit_ward_hint} {form.city}
-            </div>
-          </div>
-
           {error && (
             <div className="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm">
               <AlertTriangle size={16} />
@@ -729,6 +656,36 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
           )}
         </div>
       </div>
+
+      {/* Location blocking modal */}
+      {(location.permission === 'denied' || location.permission === 'unavailable') && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-orange-50 flex items-center justify-center mx-auto mb-5">
+              <MapPin size={28} className="text-orange-500" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-3">{T.location_required_title}</h2>
+            <p className="text-gray-500 text-sm mb-2">{T.location_required_msg}</p>
+            {location.permission === 'unavailable' && (
+              <p className="text-gray-400 text-xs mb-4">{T.location_unsupported}</p>
+            )}
+            <div className="flex flex-col gap-3 mt-6">
+              <button
+                onClick={onRequestLocation}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-all"
+              >
+                {T.location_grant_btn}
+              </button>
+              <button
+                onClick={() => onNavigate('home')}
+                className="w-full px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all"
+              >
+                {T.location_go_back}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

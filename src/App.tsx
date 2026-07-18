@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { AuthUser } from './lib/auth';
 import { LangProvider } from './lib/langContext';
+import { LocationProvider, useLocation } from './contexts/LocationContext';
 import Navbar from './components/Navbar';
 import MobileHeader from './components/MobileHeader';
 import BottomNav from './components/BottomNav';
@@ -14,36 +15,33 @@ import RTIDrafter from './pages/RTIDrafter';
 import type { Page } from './types';
 import { DashboardProvider } from './contexts/DashboardContext';
 
-export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('home');
-  const [user, setUser] = useState<AuthUser | null>(null);
-
-  function navigate(page: Page) {
-    setCurrentPage(page);
-    window.scrollTo(0, 0);
-  }
-
-  function handleLogout() {
-    setUser(null);
-    setCurrentPage('home');
-  }
-
-  // Login gate — show login page before anything else in the app
-  if (!user) {
-    return (
-      <LangProvider>
-        <LoginPage onLogin={(u) => setUser(u)} />
-      </LangProvider>
-    );
-  }
+function AuthenticatedApp({
+  currentPage,
+  navigate,
+  user,
+  handleLogout,
+}: {
+  currentPage: Page;
+  navigate: (page: Page) => void;
+  user: AuthUser;
+  handleLogout: () => void;
+}) {
+  const { lat, lng, permission, requestLocation } = useLocation();
 
   function renderPage() {
     switch (currentPage) {
       case 'home': return <Home onNavigate={navigate} user={user} />;
-      case 'submit': return <SubmitComplaint onNavigate={navigate} user={user!} />;
+      case 'submit': return (
+        <SubmitComplaint
+          onNavigate={navigate}
+          user={user}
+          location={{ lat, lng, permission }}
+          onRequestLocation={requestLocation}
+        />
+      );
       case 'track': return <TrackComplaint onNavigate={navigate} />;
       case 'admin':
-        if (user!.role !== 'admin') {
+        if (user.role !== 'admin') {
           return <Home onNavigate={navigate} user={user} />;
         }
         return <AdminDashboard onAdminLogout={() => navigate('home')} />;
@@ -91,5 +89,40 @@ export default function App() {
         </div>
       </LangProvider>
     </DashboardProvider>
+  );
+}
+
+export default function App() {
+  const [currentPage, setCurrentPage] = useState<Page>('home');
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  function navigate(page: Page) {
+    setCurrentPage(page);
+    window.scrollTo(0, 0);
+  }
+
+  function handleLogout() {
+    setUser(null);
+    setCurrentPage('home');
+  }
+
+  // Login gate — show login page before anything else in the app
+  if (!user) {
+    return (
+      <LangProvider>
+        <LoginPage onLogin={(u) => setUser(u)} />
+      </LangProvider>
+    );
+  }
+
+  return (
+    <LocationProvider>
+      <AuthenticatedApp
+        currentPage={currentPage}
+        navigate={navigate}
+        user={user}
+        handleLogout={handleLogout}
+      />
+    </LocationProvider>
   );
 }
