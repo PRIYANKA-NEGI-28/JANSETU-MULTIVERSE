@@ -213,12 +213,14 @@ export default function Home({ onNavigate, user }: HomeProps) {
                 <h2 className="text-4xl font-bold text-gray-900 mb-2">{T.feed_title}</h2>
                 <p className="text-gray-500">{T.feed_subtitle}</p>
               </div>
-              <button
-                onClick={() => onNavigate('admin')}
-                className="hidden md:flex items-center gap-2 text-orange-500 hover:text-orange-600 font-semibold transition-colors"
-              >
-                {T.feed_view_all} <ArrowRight size={16} />
-              </button>
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => onNavigate('admin')}
+                  className="hidden md:flex items-center gap-2 text-orange-500 hover:text-orange-600 font-semibold transition-colors"
+                >
+                  {T.feed_view_all} <ArrowRight size={16} />
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -347,12 +349,14 @@ export default function Home({ onNavigate, user }: HomeProps) {
             >
               {T.cta_file_btn} <ArrowRight size={20} />
             </button>
-            <button
-              onClick={() => onNavigate('admin')}
-              className="flex items-center gap-2 px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl text-lg border border-white/20 transition-all"
-            >
-              <BarChart2 size={20} /> {T.cta_dashboard_btn}
-            </button>
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => onNavigate('admin')}
+                className="flex items-center gap-2 px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl text-lg border border-white/20 transition-all"
+              >
+                <BarChart2 size={20} /> {T.cta_dashboard_btn}
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -370,7 +374,9 @@ export default function Home({ onNavigate, user }: HomeProps) {
               <button onClick={() => onNavigate('home')} className="text-gray-400 hover:text-white text-sm capitalize transition-colors">{T.footer_home}</button>
               <button onClick={() => onNavigate('submit')} className="text-gray-400 hover:text-white text-sm capitalize transition-colors">{T.footer_submit}</button>
               <button onClick={() => onNavigate('track')} className="text-gray-400 hover:text-white text-sm capitalize transition-colors">{T.footer_track}</button>
-              <button onClick={() => onNavigate('admin')} className="text-gray-400 hover:text-white text-sm capitalize transition-colors">{T.footer_admin}</button>
+              {user?.role === 'admin' && (
+                <button onClick={() => onNavigate('admin')} className="text-gray-400 hover:text-white text-sm capitalize transition-colors">{T.footer_admin}</button>
+              )}
             </div>
             <p className="text-gray-500 text-sm">{T.footer_tagline}</p>
           </div>

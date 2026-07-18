@@ -83,7 +83,7 @@ function AuthenticatedApp({
           {/* Mobile: fixed bottom navigation */}
           <div className="md:hidden fixed bottom-0 inset-x-0 z-50">
             <div className="relative">
-              <BottomNav currentPage={currentPage} onNavigate={navigate} />
+              <BottomNav currentPage={currentPage} onNavigate={navigate} user={user} />
             </div>
           </div>
         </div>

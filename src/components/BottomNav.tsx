@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Home, PenLine, Search, MapPin, Grid3x3, X, Scale, BarChart2, Languages } from 'lucide-react';
 import type { Page } from '../types';
 import { useLang } from '../lib/langContext';
+import type { AuthUser } from '../lib/auth';
 
 interface BottomNavProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
+  user: AuthUser | null;
 }
 
 const MAIN_TABS: { page: Page; icon: React.ReactNode; label: string }[] = [
@@ -15,7 +17,7 @@ const MAIN_TABS: { page: Page; icon: React.ReactNode; label: string }[] = [
   { page: 'hazardmap', icon: <MapPin size={21} />, label: 'Map' },
 ];
 
-export default function BottomNav({ currentPage, onNavigate }: BottomNavProps) {
+export default function BottomNav({ currentPage, onNavigate, user }: BottomNavProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const { lang, toggleLang, T } = useLang();
   const isMore = currentPage === 'rti' || currentPage === 'admin';
@@ -67,22 +69,24 @@ export default function BottomNav({ currentPage, onNavigate }: BottomNavProps) {
                 </div>
               </button>
 
-              <button
-                onClick={() => { onNavigate('admin'); setMoreOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all text-left ${
-                  currentPage === 'admin' ? 'bg-orange-50' : 'bg-gray-50 hover:bg-gray-100'
-                }`}
-              >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  currentPage === 'admin' ? 'bg-orange-100' : 'bg-white border border-gray-200'
-                }`}>
-                  <BarChart2 size={18} className={currentPage === 'admin' ? 'text-orange-600' : 'text-gray-500'} />
-                </div>
-                <div>
-                  <p className={`font-semibold text-sm ${currentPage === 'admin' ? 'text-orange-700' : 'text-gray-900'}`}>{T.nav_admin}</p>
-                  <p className="text-xs text-gray-400">{T.nav_admin_desc}</p>
-                </div>
-              </button>
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => { onNavigate('admin'); setMoreOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all text-left ${
+                    currentPage === 'admin' ? 'bg-orange-50' : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    currentPage === 'admin' ? 'bg-orange-100' : 'bg-white border border-gray-200'
+                  }`}>
+                    <BarChart2 size={18} className={currentPage === 'admin' ? 'text-orange-600' : 'text-gray-500'} />
+                  </div>
+                  <div>
+                    <p className={`font-semibold text-sm ${currentPage === 'admin' ? 'text-orange-700' : 'text-gray-900'}`}>{T.nav_admin}</p>
+                    <p className="text-xs text-gray-400">{T.nav_admin_desc}</p>
+                  </div>
+                </button>
+              )}
 
               <button
                 onClick={() => { toggleLang(); setMoreOpen(false); }}
