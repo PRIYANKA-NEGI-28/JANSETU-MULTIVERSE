@@ -265,4 +265,41 @@
     border-color: theme('colors.orange.500');
     box-shadow: 0 0 0 3px theme('colors.orange.500/0.15');
   }
+
+  /* Custom Premium Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(249, 115, 22, 0.2);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(249, 115, 22, 0.45);
+  }
+
+  /* Ambient Grid Patterns (Vercel/Linear style) */
+  .bg-grid-mesh {
+    background-size: 40px 40px;
+    background-image: 
+      linear-gradient(to right, rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+  }
+
+  .bg-dot-mesh {
+    background-image: radial-gradient(rgba(0, 0, 0, 0.035) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* Frosted Glassmorphism Containers */
+  .glass-premium {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+  }
 }

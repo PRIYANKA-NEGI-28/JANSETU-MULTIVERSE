@@ -35,7 +35,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-green-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-green-50 flex items-center justify-center px-4 bg-dot-mesh">
       <div className="w-full max-w-md">
         {/* Logo & Branding */}
         <ScrollReveal direction="down" delay={100}>

@@ -71,7 +71,7 @@ function AuthenticatedApp({
   return (
     <DashboardProvider>
       <LangProvider>
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 bg-dot-mesh">
           {/* Desktop: full-width fixed Navbar */}
           <div className="hidden md:block">
             <Navbar
