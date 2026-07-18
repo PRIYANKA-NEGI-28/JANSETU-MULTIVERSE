@@ -53,7 +53,8 @@ Database
 
 * Node.js (version 18 or higher)
 * Neo4j Database instance (local or AuraDB)
-* Python 3 (with standard library)
+* Python 3
+* `onnxruntime-genai` python package
 
 ### 1. Clone the repository
 
@@ -67,7 +68,10 @@ cd JANSETU-MULTIVERSE
 ```bash
 cd jansetu-backend
 npm install
+pip install onnxruntime-genai
 ```
+
+The Snapdragon X Elite NPU LLM bridge expects the ONNX model directory to be located at `jansetu-backend/ai/models/llama-3.2-3b-onnx-npu`.
 
 Configure your environment variables in a `.env` file inside the `jansetu-backend` directory (see [Environment Variables](#environment-variables)).
 
