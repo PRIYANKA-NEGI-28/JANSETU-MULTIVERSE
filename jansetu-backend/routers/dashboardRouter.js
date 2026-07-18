@@ -18,7 +18,7 @@ router.post('/', async (req, res) => {
         const result = await runQuery(query, params);
         
         if (result.records.length === 0) {
-          return res.json({ success: true, data: null });
+          throw new Error('Complaint not found in Neo4j, triggering SQLite fallback');
         }
         
         const record = result.records[0];

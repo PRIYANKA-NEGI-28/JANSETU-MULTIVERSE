@@ -18,6 +18,7 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout }: Navb
     { label: T.nav_track, page: 'track', icon: <Shield size={16} /> },
     { label: T.nav_hazard_map, page: 'hazardmap', icon: <MapPin size={16} /> },
     { label: T.nav_rti, page: 'rti', icon: <Scale size={16} /> },
+    { label: T.nav_file, page: 'submit', icon: <FileText size={16} /> },
     { label: T.nav_admin, page: 'admin', icon: <BarChart2 size={16} /> },
   ];
 
@@ -47,9 +48,11 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout }: Navb
                 key={page}
                 onClick={() => onNavigate(page)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-all ${
-                  currentPage === page
-                    ? 'bg-orange-50 text-orange-600'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  page === 'submit' 
+                    ? 'bg-green-600 text-white hover:bg-green-700 shadow-md shadow-green-900/20'
+                    : currentPage === page
+                      ? 'bg-orange-50 text-orange-600'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
                 {icon}

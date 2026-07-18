@@ -274,6 +274,10 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
       setError(T.submit_error_analyze);
       return;
     }
+    if (!photoFile) {
+      setError('An image is mandatory to file a complaint.');
+      return;
+    }
     setSubmitting(true);
     try {
       const formData = new FormData();

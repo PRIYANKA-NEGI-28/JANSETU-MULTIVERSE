@@ -129,12 +129,21 @@ export default function HazardMap({ onNavigate }: HazardMapProps) {
   
   // Create a combined list of hazards from real context state
   // We'll map sensorAlerts and complaints to the HazardReport interface
+  const mapIssueToHazard = (issueStr: string = ''): 'wire' | 'pothole' | 'flood' | 'collapse' | 'fire_hazard' => {
+    const s = issueStr.toLowerCase();
+    if (s.includes('water') || s.includes('flood') || s.includes('drain') || s.includes('sewage') || s.includes('leak')) return 'flood';
+    if (s.includes('wire') || s.includes('electric') || s.includes('cable') || s.includes('power')) return 'wire';
+    if (s.includes('fire') || s.includes('smoke') || s.includes('burn') || s.includes('gas')) return 'fire_hazard';
+    if (s.includes('collapse') || s.includes('crack') || s.includes('building') || s.includes('wall') || s.includes('tree') || s.includes('fall')) return 'collapse';
+    return 'pothole'; // Default fallback
+  };
+
   const dynamicReports: HazardReport[] = [
     ...complaints.map(c => ({
       id: c.id,
-      lat: 28.6139 + (Math.random() - 0.5) * 0.05, // mock coords since complaints missing lat/lng
-      lng: 77.2090 + (Math.random() - 0.5) * 0.05,
-      type: 'wire' as const, // mock type mapping
+      lat: c.lat || 28.6139 + (Math.random() - 0.5) * 0.05,
+      lng: c.lng || 77.2090 + (Math.random() - 0.5) * 0.05,
+      type: mapIssueToHazard(c.issue_type),
       severity: c.urgency,
       description: c.summary,
       photoUrl: null,
@@ -258,12 +267,6 @@ export default function HazardMap({ onNavigate }: HazardMapProps) {
             <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">{T.hazard_title}</h1>
             <p className="text-gray-400 text-sm max-w-xl">{T.hazard_subtitle}</p>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-900/40 text-sm"
-          >
-            <Camera size={16} /> {T.hazard_report_btn}
-          </button>
         </div>
 
         {/* Stats bar */}
@@ -317,12 +320,14 @@ export default function HazardMap({ onNavigate }: HazardMapProps) {
             <MapContainer 
               center={[28.6139, 77.2090]} 
               zoom={11} 
+              minZoom={10}
+              maxBounds={[[28.4, 76.8], [28.9, 77.5]]}
               style={{ height: '100%', width: '100%', background: '#111827' }}
               zoomControl={false}
+              attributionControl={false}
             >
               <TileLayer
                 url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
               />
               
               {/* Heatmap glow rings for critical clusters */}
