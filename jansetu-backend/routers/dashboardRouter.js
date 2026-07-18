@@ -120,16 +120,16 @@ router.get('/', async (req, res) => {
       const sqliteComplaints = getAllComplaints();
       activeList = sqliteComplaints.map(c => ({
          id: c.id,
-         complaint_number: c.id.substring(0, 15),
-         citizen_name: 'Local Citizen (Offline)',
+         complaint_number: c.complaint_number || c.id.substring(0, 15),
+         citizen_name: c.citizen_name || 'Anonymous',
          issue_type: c.issueType || 'General Complaint',
-         department: 'Offline Mode Dept',
-         area: 'Local Storage',
-         ward: 'N/A',
+         department: c.department || 'General Administration',
+         area: c.area || 'Unknown Area',
+         ward: c.ward || 'Unknown Ward',
          status: c.status || 'PENDING',
          urgency: c.urgency || 'MEDIUM',
-         lat: c.lat,
-         lng: c.lng,
+         lat: c.lat || 0,
+         lng: c.lng || 0,
          similar_count: 0
       }));
 

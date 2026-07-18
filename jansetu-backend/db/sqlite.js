@@ -60,9 +60,9 @@ function logAdminAction(id, action) {
   stmt.run(id, action);
 }
 
-function saveComplaint(id, complaint_number, citizen_name, issueType, department, area, ward, raw_text, summary, language, lat, lng, imageUrl, urgency, status, createdAt) {
-  const stmt = db.prepare('INSERT INTO complaints (id, complaint_number, citizen_name, issueType, department, area, ward, raw_text, summary, language, lat, lng, imageUrl, urgency, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  stmt.run(id, complaint_number, citizen_name, issueType, department, area, ward, raw_text, summary, language, lat, lng, imageUrl, urgency, status, createdAt);
+function saveComplaint(id, complaint_number, citizen_name, citizen_phone, issueType, department, area, ward, raw_text, summary, language, lat, lng, imageUrl, urgency, status, createdAt) {
+  const stmt = db.prepare('INSERT INTO complaints (id, complaint_number, citizen_name, citizen_phone, issueType, department, area, ward, raw_text, summary, language, lat, lng, imageUrl, urgency, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  stmt.run(id, complaint_number, citizen_name, citizen_phone, issueType, department, area, ward, raw_text, summary, language, lat, lng, imageUrl, urgency, status, createdAt);
 }
 
 function updateComplaint(id, updates) {

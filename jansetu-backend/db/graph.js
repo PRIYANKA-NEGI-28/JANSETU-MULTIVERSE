@@ -108,9 +108,12 @@ async function createComplaintNode(data) {
     result = await runQuery(query, params);
   } catch (error) {
     console.warn('Neo4j query failed in createComplaintNode, using mock result:', error.message);
-    // Return a mock result with the input data
+    const complaintNumber = data.complaint_number || `JS-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(Math.random()*9000)+1000}`;
     result = createMockResult({
       id: data.id,
+      complaint_number: complaintNumber,
+      citizen_name: data.citizenName || 'Anonymous',
+      citizenPhone: data.citizenPhone || '',
       issueType: data.issueType || null,
       lat: parseFloat(data.lat) || 0,
       lng: parseFloat(data.lng) || 0,
@@ -138,15 +141,26 @@ async function createComplaintNode(data) {
     const urgency = data.urgency || 'MEDIUM';
     const status = data.status || 'PENDING';
     const createdAt = new Date().toISOString();
-
+    const citizenPhone = data.citizenPhone || '';
+    
     saveComplaint(
       data.id,
+      complaintNumber,
+      citizenName,
+      citizenPhone,
       issueType,
+      department,
+      area,
+      ward,
+      rawText,
+      summary,
+      language,
       lat,
       lng,
       imageUrl,
       urgency,
-      status
+      status,
+      createdAt
     );
   } catch (sqliteError) {
     console.error('Failed to save complaint to SQLite:', sqliteError);

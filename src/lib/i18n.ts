@@ -24,7 +24,7 @@ export const t = {
     hero_title_1: 'Civic Issues.',
     hero_title_2: 'Resolved.',
     hero_title_3: 'Faster.',
-    hero_subtitle: 'JanSetu Graph AI connects citizens, complaints, locations and departments using AI and graph intelligence. Report in Hindi or English — we handle the rest.',
+    hero_subtitle: 'JanSetu connects citizens, complaints, locations and departments using AI and graph intelligence. Report in Hindi or English — we handle the rest.',
     hero_welcome: 'Welcome back',
     hero_file_btn: 'File a Complaint',
     hero_track_btn: 'Track Your Issue',
@@ -353,7 +353,7 @@ export const t = {
 
     // Admin Login
     admin_login_title: 'Admin Access',
-    admin_login_subtitle: 'JanSetu Graph AI · Restricted Zone',
+    admin_login_subtitle: 'JanSetu · Restricted Zone',
     admin_login_password: 'Admin Password',
     admin_login_placeholder: 'Enter admin password',
     admin_login_verifying: 'Verifying...',
