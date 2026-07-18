@@ -94,6 +94,13 @@ function AuthenticatedApp({
             />
           </div>
 
+          {/* Glowing Top Progress Bar during transitions */}
+          {isFading && (
+            <div className="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-orange-400 via-orange-500 to-orange-600 z-[9999] shadow-sm shadow-orange-500/20">
+              <div className="h-full bg-white/30 animate-pulse w-full" />
+            </div>
+          )}
+
           {/* Page content */}
           <main className={`pb-[68px] md:pb-0 transition-opacity duration-200 ease-in-out ${isFading ? 'opacity-0' : 'opacity-100'}`}>
             {renderPage()}

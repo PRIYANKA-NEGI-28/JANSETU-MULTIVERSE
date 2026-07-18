@@ -50,18 +50,25 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout }: Navb
           isScrolled ? 'h-16' : 'h-20'
         }`}>
           {/* Logo */}
-          <button 
-            onClick={() => onNavigate('home')} 
-            className="flex items-center transition-transform duration-200 hover:scale-105 active:scale-95"
-          >
-            <img
-              src="/images/ChatGPT_Image_Jun_24,_2026,_08_18_26_PM copy copy.png"
-              alt="JanSetu"
-              className={`h-16 w-auto object-contain transition-all duration-300 ${
-                isScrolled ? 'scale-90' : 'scale-100'
-              }`}
-            />
-          </button>
+          <div className="flex items-center">
+            <button 
+              onClick={() => onNavigate('home')} 
+              className="flex items-center transition-transform duration-200 hover:scale-105 active:scale-95"
+            >
+              <img
+                src="/images/ChatGPT_Image_Jun_24,_2026,_08_18_26_PM copy copy.png"
+                alt="JanSetu"
+                className={`h-16 w-auto object-contain transition-all duration-300 ${
+                  isScrolled ? 'scale-90' : 'scale-100'
+                }`}
+              />
+            </button>
+            <div className="flex items-center gap-1.5 ml-3 px-2 py-1 bg-emerald-50 border border-emerald-100 rounded-full select-none hidden lg:flex relative">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 absolute"></span>
+              <span className="text-[10px] font-extrabold text-emerald-700 tracking-wider uppercase pl-3">{T.nav_system_online || 'System Online'}</span>
+            </div>
+          </div>
 
           {/* Nav Links */}
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">

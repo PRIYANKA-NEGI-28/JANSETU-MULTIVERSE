@@ -481,18 +481,27 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
               </div>
 
               {isRecording && (
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center gap-2 text-indigo-600 text-sm font-medium">
-                    <span className="flex gap-0.5">
-                      {[0, 1, 2, 3].map(i => (
-                        <span key={i} className="w-1 rounded-full bg-indigo-500 animate-bounce" style={{ height: `${8 + i * 4}px`, animationDelay: `${i * 0.1}s` }}></span>
+                <div className="mt-3 space-y-2.5">
+                  <div className="flex items-center gap-3 text-indigo-600 text-sm font-semibold">
+                    <div className="flex items-end gap-1 h-5 select-none">
+                      {[0.4, 0.6, 0.3, 0.7, 0.5, 0.45, 0.65, 0.35, 0.55, 0.4].map((duration, i) => (
+                        <span 
+                          key={i} 
+                          className="w-1 rounded-full bg-indigo-500 animate-audio-wave shadow-sm shadow-indigo-400/50" 
+                          style={{ 
+                            height: '100%', 
+                            animationDuration: `${duration}s`, 
+                            animationDelay: `${i * 0.05}s`,
+                            transformOrigin: 'bottom'
+                          }}
+                        />
                       ))}
-                    </span>
-                    {T.submit_voice_recording} {formatTime(recordingTime)} / {formatTime(MAX_RECORDING_TIME)}
+                    </div>
+                    <span>{T.submit_voice_recording} {formatTime(recordingTime)} / {formatTime(MAX_RECORDING_TIME)}</span>
                   </div>
-                  <div className="w-full h-2 bg-indigo-100 rounded-full overflow-hidden">
+                  <div className="w-full h-1.5 bg-indigo-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-indigo-500 transition-all duration-1000"
+                      className="h-full bg-gradient-to-r from-indigo-50 to-indigo-500 transition-all duration-1000"
                       style={{ width: `${(recordingTime / MAX_RECORDING_TIME) * 100}%` }}
                     />
                   </div>
@@ -522,13 +531,16 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
                 {T.submit_complaint_text} <span className="text-red-500">*</span>
                 <span className="ml-2 text-xs font-normal text-gray-400">{T.submit_complaint_hint}</span>
               </label>
-              <textarea
-                rows={4}
-                placeholder={T.submit_complaint_placeholder}
-                value={form.text}
-                onChange={e => handleTextChange(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-transparent resize-none transition-all input-premium"
-              />
+              <div className={`relative rounded-xl overflow-hidden ${analyzing ? 'scanner-overlay' : ''}`}>
+                <textarea
+                  rows={4}
+                  placeholder={T.submit_complaint_placeholder}
+                  value={form.text}
+                  onChange={e => handleTextChange(e.target.value)}
+                  disabled={analyzing}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-transparent resize-none transition-all input-premium"
+                />
+              </div>
               <p className="text-xs text-gray-400 mt-1">{form.text.length} {T.submit_characters}</p>
             </div>
 

@@ -327,4 +327,54 @@
     animation-delay: -10s;
     transform-origin: center bottom;
   }
+
+  /* AI Scanner Laser Beam Animation */
+  @keyframes scanner-laser {
+    0% {
+      top: -10%;
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      top: 110%;
+      opacity: 0;
+    }
+  }
+  
+  .scanner-overlay {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .scanner-overlay::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(to right, transparent, rgba(99, 102, 241, 0.8), transparent);
+    box-shadow: 0 0 12px 3px rgba(99, 102, 241, 0.5);
+    animation: scanner-laser 2s ease-in-out infinite;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  /* Audio Wave Visualizer Animation */
+  @keyframes audio-wave {
+    0% {
+      transform: scaleY(0.25);
+    }
+    100% {
+      transform: scaleY(1);
+    }
+  }
+
+  .animate-audio-wave {
+    animation: audio-wave 0.5s ease-in-out infinite alternate;
+  }
 }
