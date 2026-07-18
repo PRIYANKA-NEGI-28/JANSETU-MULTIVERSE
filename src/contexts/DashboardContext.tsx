@@ -57,21 +57,25 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
       // Parallel fetches for efficiency
       const [dashRes, sensorRes] = await Promise.all([
         fetch('/api/dashboard'),
-        fetch('/api/sensor'),
+        fetch('/api/sensor').catch(() => ({ ok: false, json: async () => ({ alerts: [] }) } as Response)),
       ]);
 
-      if (dashRes.ok && sensorRes.ok) {
+      if (dashRes.ok) {
         const dashData = await dashRes.json();
-        const sensorData = await sensorRes.json();
+        const sensorData = sensorRes.ok ? await sensorRes.json().catch(() => ({ alerts: [] })) : { alerts: [] };
         
-        setComplaints(dashData.complaints || []);
-        setGlobalMetrics(dashData.metrics || {
-          totalComplaints: 0,
-          resolved: 0,
-          pending: 0,
-          escalated: 0,
-          criticalZones: 0,
-          clustersDetected: 0,
+        setComplaints(dashData.data?.activeList || []);
+        
+        const stats = dashData.data?.stats || {};
+        const criticalZonesCount = dashData.data?.criticalZones?.length || 0;
+        
+        setGlobalMetrics({
+          totalComplaints: stats.total || 0,
+          resolved: stats.resolved || 0,
+          pending: stats.pending || 0,
+          escalated: stats.escalated || 0,
+          criticalZones: criticalZonesCount,
+          clustersDetected: criticalZonesCount,
         });
         setSensorAlerts(sensorData.alerts || []);
         setNetworkError(false);

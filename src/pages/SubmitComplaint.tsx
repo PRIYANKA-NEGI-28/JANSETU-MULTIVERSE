@@ -303,8 +303,9 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
         throw new Error('Failed to submit complaint');
       }
 
-      const data = await response.json();
-      setSubmitted(data.complaintNumber || data.id || 'JS-COMP-OK');
+      const responseData = await response.json();
+      const complaintNumber = responseData?.data?.complaint_number || responseData?.complaintNumber || responseData?.id || 'JS-COMP-OK';
+      setSubmitted(complaintNumber);
     } catch {
       setError(T.submit_error_submit);
     } finally {

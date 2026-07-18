@@ -3,6 +3,40 @@ const router = express.Router();
 const { runQuery } = require('../db/graph');
 const { getRtiDrafts } = require('../db/sqlite');
 
+// POST /api/dashboard - RPC endpoint for Neo4j proxy operations
+router.post('/', async (req, res) => {
+  try {
+    const { action, params } = req.body;
+    
+    if (action === 'getComplaintByNumber') {
+      const query = `
+        MATCH (c:Complaint {complaint_number: $complaint_number})
+        OPTIONAL MATCH (c)-[:CLUSTER_WITH]-(similar:Complaint)
+        RETURN c, collect(similar) as similar_complaints
+      `;
+      const result = await runQuery(query, params);
+      
+      if (result.records.length === 0) {
+        return res.json({ success: true, data: null });
+      }
+      
+      const record = result.records[0];
+      const complaint = record.get('c').properties;
+      const similar = record.get('similar_complaints').map(s => s.properties);
+      
+      complaint.similar_complaints = similar;
+      complaint.similar_count = similar.length + 1;
+      
+      return res.json({ success: true, data: complaint });
+    }
+    
+    return res.status(400).json({ error: 'Unknown action' });
+  } catch (error) {
+    console.error('RPC Error:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 // GET /api/dashboard - Fetch data for the dashboard
 router.get('/', async (req, res) => {
   try {

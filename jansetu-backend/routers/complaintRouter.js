@@ -8,7 +8,7 @@ const crypto = require('crypto');
 // POST /api/complaint - Register a new complaint with optional image upload
 router.post('/', upload.single('image_file'), async (req, res) => {
   try {
-    const { issueType, urgency } = req.body;
+    const { issueType, urgency, citizenName, citizenPhone, rawText, language, summary, department, area, ward } = req.body;
     // Enforce standard default safety values for lat/lng (e.g., core municipality coordinates)
     const parsedLat = parseFloat(req.body.lat);
     const lat = !isNaN(parsedLat) ? parsedLat : 28.6139; // New Delhi Lat fallback
@@ -17,10 +17,20 @@ router.post('/', upload.single('image_file'), async (req, res) => {
     
     const imageUrl = req.file ? req.file.path : (req.body.imageUrl || null);
     const id = crypto.randomUUID();
+    const complaint_number = `JS-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(Math.random() * 9000) + 1000}`;
 
     // Create complaint node in Neo4j using the new graph transaction
     const result = await createComplaintNode({
       id,
+      complaint_number,
+      citizenName,
+      citizenPhone,
+      rawText,
+      language,
+      summary,
+      department,
+      area,
+      ward,
       issueType: issueType || 'General',
       lat,
       lng,

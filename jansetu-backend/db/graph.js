@@ -61,12 +61,22 @@ async function createComplaintNode(data) {
   const query = `
     CREATE (n:Complaint {
       id: $id,
+      complaint_number: $complaint_number,
+      citizen_name: $citizen_name,
       issueType: $issueType,
+      issue_type: $issueType,
+      department: $department,
+      area: $area,
+      ward: $ward,
+      raw_text: $raw_text,
+      summary: $summary,
+      language: $language,
       lat: toFloat($lat),
       lng: toFloat($lng),
       imageUrl: $imageUrl,
       urgency: $urgency,
       status: $status,
+      created_at: datetime(),
       createdAt: datetime()
     })
     WITH n
@@ -77,7 +87,15 @@ async function createComplaintNode(data) {
   `;
   const params = {
     id: data.id,
-    issueType: data.issueType || null,
+    complaint_number: data.complaint_number || `JS-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(Math.random()*9000)+1000}`,
+    citizen_name: data.citizenName || 'Anonymous',
+    issueType: data.issueType || 'General',
+    department: data.department || 'General Administration',
+    area: data.area || 'Unknown Area',
+    ward: data.ward || 'Unknown Ward',
+    raw_text: data.rawText || '',
+    summary: data.summary || '',
+    language: data.language || 'en',
     lat: data.lat || 0,
     lng: data.lng || 0,
     imageUrl: data.imageUrl || null,
