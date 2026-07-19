@@ -98,8 +98,10 @@ async function getComplaintByNumber(number) {
 
 async function getUserComplaints(phone) {
   if (!db) return [];
-  const snapshot = await db.collection('complaints').where('citizen_phone', '==', phone).orderBy('createdAt', 'desc').get();
-  return snapshot.docs.map(doc => doc.data());
+  const snapshot = await db.collection('complaints').where('citizen_phone', '==', phone).get();
+  return snapshot.docs
+    .map(doc => doc.data())
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
 async function updateComplaintStatus(id, status) {
@@ -121,8 +123,10 @@ async function recordSensorFault(alert) {
 
 async function getSensorAlerts() {
   if (!db) return [];
-  const snapshot = await db.collection('sensor_alerts').where('status', '==', 'FAULT').orderBy('createdAt', 'desc').get();
-  return snapshot.docs.map(doc => doc.data());
+  const snapshot = await db.collection('sensor_alerts').where('status', '==', 'FAULT').get();
+  return snapshot.docs
+    .map(doc => doc.data())
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
 async function resolveSensorFault(deviceId) {
