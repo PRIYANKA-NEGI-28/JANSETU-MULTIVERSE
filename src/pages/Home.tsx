@@ -4,7 +4,8 @@ import {
   ArrowRight, FileText, TrendingUp, Users, CheckCircle, AlertTriangle, Clock,
   Lightbulb, Truck, Droplet, Construction, Zap, Activity
 } from 'lucide-react';
-import { getAllComplaints, type Neo4jComplaint } from '../lib/neo4j';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { getAllComplaints, getUserComplaints, type Neo4jComplaint } from '../lib/neo4j';
 import { useLang } from '../lib/langContext';
 import type { Page } from '../types';
 import type { AuthUser } from '../lib/auth';
@@ -50,10 +51,18 @@ export default function Home({ onNavigate, user }: HomeProps) {
   const [recentComplaints, setRecentComplaints] = useState<Neo4jComplaint[]>([]);
   const [parallaxOffset, setParallaxOffset] = useState({ x: 0, y: 0 });
 
+  const { subscribe } = useWebSocket();
+
   useEffect(() => {
     async function loadData() {
       try {
-        const data = await getAllComplaints();
+        let data: Neo4jComplaint[] = [];
+        if (user && user.phone) {
+          data = await getUserComplaints(user.phone);
+        } else {
+          data = await getAllComplaints();
+        }
+        
         if (data) {
           setRecentComplaints(data.slice(0, 6));
           setStats({
@@ -66,7 +75,42 @@ export default function Home({ onNavigate, user }: HomeProps) {
       } catch { /* show zeros if Neo4j unreachable on first load */ }
     }
     loadData();
-  }, []);
+
+    const unsubscribe = subscribe((msg) => {
+      if (msg.type === 'new_complaint') {
+        const c = msg.data;
+        // if user is logged in, only show their complaints
+        if (user && user.phone && c.citizen_phone !== user.phone) return;
+        
+        setRecentComplaints(prev => [c, ...prev].slice(0, 6));
+        setStats(prev => ({
+          ...prev,
+          total: prev.total + 1,
+          pending: prev.pending + 1
+        }));
+      } else if (msg.type === 'complaint_updated') {
+        setRecentComplaints(prev => prev.map(c => {
+          if (c.id === msg.data.id || c.complaint_number === msg.data.id) {
+            return { ...c, status: msg.data.status };
+          }
+          return c;
+        }));
+        
+        setStats(prev => {
+          const isResolved = msg.data.status === 'RESOLVED';
+          const isEscalated = msg.data.status === 'ESCALATED';
+          return {
+            ...prev,
+            resolved: prev.resolved + (isResolved ? 1 : 0),
+            escalated: prev.escalated + (isEscalated ? 1 : 0),
+            pending: Math.max(0, prev.pending - 1)
+          };
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [subscribe, user]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
