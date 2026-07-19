@@ -14,7 +14,7 @@ router.post('/', (req, res) => {
 
   // Spawn the python process to generate the formal RTI application
   const pythonScript = path.join(__dirname, '../ai/rti_drafter.py');
-  const pythonProcess = spawn('C:\\LocalAI\\qai-env\\Scripts\\python.exe', [pythonScript, JSON.stringify(form), '--model', 'C:\\LocalAI\\models\\qwen2.5-onnx']);
+  const pythonProcess = spawn('C:\\LocalAI\\qai-env\\Scripts\\python.exe', [pythonScript, JSON.stringify(form), '--model', 'C:\\Users\\qcwor\\Desktop\\JanSetu-MultiVerse\\JANSETU-MULTIVERSE\\jansetu-backend\\ai\\models\\qwen\\Qwen3-0.6B-Q4_0.gguf']);
 
   let output = '';
   let errorOutput = '';

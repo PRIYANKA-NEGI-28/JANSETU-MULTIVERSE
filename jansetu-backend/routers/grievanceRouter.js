@@ -18,7 +18,7 @@ router.post('/', (req, res) => {
 
   // Build command args for the Python grievance officer pipeline
   const pythonScript = path.join(__dirname, '../ai/grievance_officer.py');
-  const args = [pythonScript, rawText, '--model', 'C:\\LocalAI\\models\\qwen2.5-onnx'];
+  const args = [pythonScript, rawText, '--model', 'C:\\Users\\qcwor\\Desktop\\JanSetu-MultiVerse\\JANSETU-MULTIVERSE\\jansetu-backend\\ai\\models\\qwen\\Qwen3-0.6B-Q4_0.gguf'];
 
   if (applicantName) {
     args.push('--name', applicantName);

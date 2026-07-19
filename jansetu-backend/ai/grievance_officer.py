@@ -25,10 +25,10 @@ if sys.stderr.encoding != 'utf-8':
     sys.stderr.reconfigure(encoding='utf-8')
 
 try:
-    import onnxruntime_genai as og
-    HAS_ONNX = True
+    from llama_cpp import Llama
+    HAS_LLAMA = True
 except ImportError:
-    HAS_ONNX = False
+    HAS_LLAMA = False
 
 
 # ─── DEPARTMENT CLASSIFICATION RULES ─────────────────────────────────────────
@@ -309,9 +309,9 @@ def compute_urgency(base: str, text: str) -> str:
 # ─── LLM-BASED EXTRACTION (WHEN MODEL AVAILABLE) ─────────────────────────────
 
 def extract_facts_via_llm(raw_text: str, model_path: str) -> dict:
-    """Use onnxruntime_genai to intelligently extract facts from messy text."""
-    if not HAS_ONNX:
-        print("onnxruntime_genai not installed, falling back to regex.", file=sys.stderr)
+    """Use llama_cpp to intelligently extract facts from messy text."""
+    if not HAS_LLAMA:
+        print("llama_cpp not installed, falling back to regex.", file=sys.stderr)
         return None
 
     try:
@@ -336,21 +336,9 @@ Return null for any field where the information is NOT explicitly present in the
             "<|im_start|>assistant\n"
         )
         
-        model = og.Model(model_path)
-        tokenizer = og.Tokenizer(model)
-        
-        input_tokens = tokenizer.encode(formatted_prompt)
-        
-        params = og.GeneratorParams(model)
-        params.set_search_options(max_length=800, temperature=0.1, past_present_share_buffer=False)
-        params.input_ids = input_tokens
-        
-        output_tokens = model.generate(params)
-        new_tokens = output_tokens[0][len(input_tokens):]
-        result_text = tokenizer.decode(new_tokens)
-        
-        if result_text.endswith("<|im_end|>"):
-            result_text = result_text[:-10]
+        llm = Llama(model_path=model_path, n_ctx=2048, verbose=False)
+        output = llm(formatted_prompt, max_tokens=800, stop=["<|im_end|>"], temperature=0.1)
+        result_text = output["choices"][0]["text"].strip()
         
         # Try to parse JSON from the response
         json_match = re.search(r'\{[^{}]*\}', result_text, re.DOTALL)
@@ -624,7 +612,7 @@ def process_grievance(raw_text: str, applicant_name: str = None, applicant_phone
         "metadata": {
             "llm_used": llm_used if 'llm_used' in dir() else False,
             "model_path": model_path,
-            "processing_device": "ONNX Runtime GenAI (Snapdragon NPU)" if llm_used else "Regex/Template Fallback",
+            "processing_device": "llama_cpp local CPU" if llm_used else "Regex/Template Fallback",
             "timestamp": datetime.now().isoformat(),
         },
         "status": "success"

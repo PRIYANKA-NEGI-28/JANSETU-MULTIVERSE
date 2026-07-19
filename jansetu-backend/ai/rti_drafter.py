@@ -24,10 +24,10 @@ if sys.stderr.encoding != 'utf-8':
     sys.stderr.reconfigure(encoding='utf-8')
 
 try:
-    import onnxruntime_genai as og
-    HAS_ONNX = True
+    from llama_cpp import Llama
+    HAS_LLAMA = True
 except ImportError:
-    HAS_ONNX = False
+    HAS_LLAMA = False
 
 
 # ─── QUERY PARSER ─────────────────────────────────────────────────────────────
@@ -219,8 +219,8 @@ Signature of Applicant
 # ─── LLM-BASED GENERATOR ──────────────────────────────────────────────────────
 
 def generate_llm_rti(fields: dict, model_path: str) -> str:
-    if not HAS_ONNX:
-        print("onnxruntime_genai not installed, falling back to template.", file=sys.stderr)
+    if not HAS_LLAMA:
+        print("llama_cpp not installed, falling back to template.", file=sys.stderr)
         return None
 
     try:
@@ -242,23 +242,11 @@ def generate_llm_rti(fields: dict, model_path: str) -> str:
             "<|im_start|>assistant\n"
         )
         
-        model = og.Model(model_path)
-        tokenizer = og.Tokenizer(model)
-        
-        input_tokens = tokenizer.encode(formatted_prompt)
-        
-        params = og.GeneratorParams(model)
-        params.set_search_options(max_length=1500, temperature=0.4, past_present_share_buffer=False)
-        params.input_ids = input_tokens
-        
-        output_tokens = model.generate(params)
-        new_tokens = output_tokens[0][len(input_tokens):]
-        generated_text = tokenizer.decode(new_tokens)
-        
-        if generated_text.endswith("<|im_end|>"):
-            generated_text = generated_text[:-10]
+        llm = Llama(model_path=model_path, n_ctx=2048, verbose=False)
+        output = llm(formatted_prompt, max_tokens=1500, stop=["<|im_end|>"], temperature=0.4)
+        generated_text = output["choices"][0]["text"].strip()
             
-        return generated_text.strip()
+        return generated_text
     except Exception as e:
         print(f"LLM extraction error: {e}", file=sys.stderr)
         return None
