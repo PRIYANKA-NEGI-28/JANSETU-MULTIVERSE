@@ -1,4 +1,4 @@
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://jansetu-multiverse.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 async function callProxy<T>(action: string, params: Record<string, unknown> = {}): Promise<T> {
   const res = await fetch(`${BACKEND_URL}/api/dashboard`, {
