@@ -18,6 +18,7 @@ const sensorRouter = require('./routers/sensorRouter');
 const dashboardRouter = require('./routers/dashboardRouter');
 const drafterRouter = require('./routers/drafterRouter');
 const adminRouter = require('./routers/adminRouter');
+const grievanceRouter = require('./routers/grievanceRouter');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,6 +49,7 @@ app.use('/api/sensor', express.json({ type: '*/*' }), sensorRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/drafter', drafterRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/grievance', grievanceRouter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

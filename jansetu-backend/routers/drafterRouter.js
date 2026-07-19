@@ -5,25 +5,25 @@ const path = require('path');
 const { saveRtiDraft } = require('../db/sqlite');
 const crypto = require('crypto');
 
+<<<<<<< HEAD
 const catchAsync = require('../utils/catchAsync');
 
 // POST /api/drafter - Spawns NPU child process for local LLM inference
 router.post('/', catchAsync(async (req, res) => {
   const { authorityType, applicantDetails, informationRequired } = req.body;
+=======
+// POST /api/drafter - Spawns Python process for formal statutory RTI generation
+router.post('/', (req, res) => {
+  const form = req.body;
+>>>>>>> c0f8cb1 (minor)
   
-  if (!authorityType || !informationRequired) {
-    return res.status(400).json({ success: false, error: 'authorityType and informationRequired are required' });
+  if (!form || !form.authorityName) {
+    return res.status(400).json({ success: false, error: 'Form data is missing required fields' });
   }
 
-  // Construct a well-structured prompt context payload
-  const prompt = `Draft a formal legal document/application addressed to ${authorityType}.
-Applicant Details: ${applicantDetails || 'Anonymous'}
-Information/Request Required: ${informationRequired}
-Ensure the tone is formal and compliant with standard bureaucratic protocol.`;
-
-  // Spawn the python process to invoke Llama-v3.2 on the NPU
-  const pythonScript = path.join(__dirname, '../ai/llm_bridge.py');
-  const pythonProcess = spawn('python3', [pythonScript, prompt]);
+  // Spawn the python process to generate the formal RTI application
+  const pythonScript = path.join(__dirname, '../ai/rti_drafter.py');
+  const pythonProcess = spawn('python', [pythonScript, JSON.stringify(form)]);
 
   let output = '';
   let errorOutput = '';
@@ -37,12 +37,12 @@ Ensure the tone is formal and compliant with standard bureaucratic protocol.`;
     return res.status(504).json({ success: false, error: 'Gateway Timeout: LLM script exceeded 15s limit' });
   }, 15000);
 
-  // Collect text stream chunks over the stdout event channel natively
+  // Collect text stream chunks
   pythonProcess.stdout.on('data', (data) => {
     output += data.toString();
   });
 
-  // Track standard execution error logs using the stderr event handler
+  // Track standard execution error logs
   pythonProcess.stderr.on('data', (data) => {
     errorOutput += data.toString();
   });
@@ -53,22 +53,23 @@ Ensure the tone is formal and compliant with standard bureaucratic protocol.`;
 
     if (code !== 0) {
       console.error(`Python process exited with code ${code}: ${errorOutput}`);
-      return res.status(500).json({ success: false, error: 'LLM inference failed', details: errorOutput });
+      return res.status(500).json({ success: false, error: 'RTI drafter failed', details: errorOutput });
     }
     
     try {
-      // Transmit the final text payload structure safely as JSON back to the calling client interface
       const result = JSON.parse(output);
       
       const id = crypto.randomUUID();
-      saveRtiDraft(id, applicantDetails || 'Anonymous', authorityType, result.generated_text || output);
+      // Save draft (fallback to empty string if missing)
+      saveRtiDraft(id, form.applicantName || 'Anonymous', form.authorityType || 'Unknown', result.draftText || '');
       
-      res.status(200).json({ success: true, data: result, id });
+      res.status(200).json({ success: true, draftText: result.draftText, id });
     } catch (parseError) {
+      console.error('Failed to parse RTI drafter output:', parseError);
       const id = crypto.randomUUID();
-      saveRtiDraft(id, applicantDetails || 'Anonymous', authorityType, output.trim());
+      saveRtiDraft(id, form.applicantName || 'Anonymous', form.authorityType || 'Unknown', output.trim());
       
-      res.status(200).json({ success: true, data: { response: output.trim() }, id });
+      res.status(200).json({ success: true, draftText: output.trim(), id });
     }
   });
 }));

@@ -81,6 +81,19 @@ function initSQLite() {
       type TEXT,
       assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS grievance_drafts (
+      id TEXT PRIMARY KEY,
+      applicant_name TEXT,
+      applicant_phone TEXT,
+      raw_input TEXT,
+      nature_of_grievance TEXT,
+      target_department TEXT,
+      english_draft TEXT,
+      hindi_draft TEXT,
+      analysis_json TEXT,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
   console.log('Successfully initialized SQLite Database.');
 }
@@ -222,6 +235,21 @@ function updateComplaintStatus(id, status) {
   updateComplaint(id, { status });
 }
 
+function saveGrievanceDraft(id, applicantName, applicantPhone, rawInput, natureOfGrievance, targetDepartment, englishDraft, hindiDraft, analysisJson) {
+  const stmt = db.prepare(`
+    INSERT INTO grievance_drafts (
+      id, applicant_name, applicant_phone, raw_input, nature_of_grievance,
+      target_department, english_draft, hindi_draft, analysis_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  stmt.run(id, applicantName, applicantPhone, rawInput, natureOfGrievance, targetDepartment, englishDraft, hindiDraft, analysisJson);
+}
+
+function getGrievanceDrafts(limit = 50) {
+  const stmt = db.prepare(`SELECT * FROM grievance_drafts ORDER BY timestamp DESC LIMIT ?`);
+  return stmt.all(limit);
+}
+
 module.exports = {
   db,
   initSQLite,
@@ -240,5 +268,7 @@ module.exports = {
   getOfficersByDepartment,
   assignOfficer,
   escalateComplaint,
-  updateComplaintStatus
+  updateComplaintStatus,
+  saveGrievanceDraft,
+  getGrievanceDrafts
 };
