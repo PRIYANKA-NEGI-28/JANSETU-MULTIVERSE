@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { spawn } = require('child_process');
 const path = require('path');
-const { saveRtiDraft } = require('../db/sqlite');
+const { saveRtiDraft } = require('../db/firebase');
 const crypto = require('crypto');
 
 // POST /api/drafter - Spawns Python process for formal statutory RTI generation

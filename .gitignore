@@ -349,3 +349,5 @@ Temporary Items
 .apdisk
 
 # End of https://www.toptal.com/developers/gitignore/api/node,reactnative,react
+# Firebase Secret
+firebase-service-account.json

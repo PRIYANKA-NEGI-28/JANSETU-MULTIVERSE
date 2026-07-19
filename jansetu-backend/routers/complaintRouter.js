@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { runQuery, createComplaintNode } = require('../db/graph');
+const { createComplaint } = require('../db/firebase');
 const upload = require('../middleware/upload');
 const multer = require('multer');
 const crypto = require('crypto');
@@ -41,49 +41,26 @@ router.post('/', upload.single('image_file'), catchAsync(async (req, res) => {
   const imageUrl = req.file ? req.file.path : (body.imageUrl || null);
   const id = crypto.randomUUID();
 
-  // Create complaint node in Neo4j + SQLite
-  const result = await createComplaintNode({
+  // Create complaint in Firebase
+  const complaintData = await createComplaint({
     id,
     complaint_number,
-    citizenName,
-    citizenPhone,
-    rawText,
+    citizen_name: citizenName,
+    citizen_phone: citizenPhone,
+    raw_text: rawText,
     language,
     summary,
     department,
     area,
     ward,
-    issueType,
+    issue_type: issueType,
     lat,
     lng,
     imageUrl,
     urgency,
-    status: 'PENDING'
+    status: 'PENDING',
+    similar_count: 1
   });
-
-  const rawProps = result.records[0].get('c').properties;
-
-  // Normalize the broadcast payload so every WS consumer gets a consistent shape
-  const complaintData = {
-    id: rawProps.id || id,
-    complaint_number: rawProps.complaint_number || complaint_number,
-    citizen_name: rawProps.citizen_name || citizenName,
-    citizen_phone: rawProps.citizenPhone || citizenPhone,
-    issue_type: rawProps.issue_type || rawProps.issueType || issueType,
-    department: rawProps.department || department,
-    area: rawProps.area || area,
-    ward: rawProps.ward || ward,
-    raw_text: rawProps.raw_text || rawText,
-    summary: rawProps.summary || summary,
-    language: rawProps.language || language,
-    lat: parseFloat(rawProps.lat) || lat,
-    lng: parseFloat(rawProps.lng) || lng,
-    imageUrl: rawProps.imageUrl || imageUrl,
-    urgency: rawProps.urgency || urgency,
-    status: rawProps.status || 'PENDING',
-    created_at: rawProps.created_at || rawProps.createdAt || new Date().toISOString(),
-    similar_count: rawProps.similar_count || 1
-  };
 
   // Broadcast to all WebSocket clients for real-time update
   broadcast('new_complaint', complaintData);
