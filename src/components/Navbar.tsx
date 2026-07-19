@@ -28,6 +28,7 @@ export default function Navbar({ currentPage, onNavigate, user, onLogout }: Navb
     { label: T.nav_track, page: 'track', icon: <Shield size={16} /> },
     { label: T.nav_hazard_map, page: 'hazardmap', icon: <MapPin size={16} /> },
     { label: T.nav_rti, page: 'rti', icon: <Scale size={16} /> },
+    { label: 'Grievance Officer', page: 'grievance', icon: <FileText size={16} /> },
     { label: T.nav_file, page: 'submit', icon: <FileText size={16} /> },
     { label: T.nav_admin, page: 'admin', icon: <BarChart2 size={16} /> },
     { label: 'IoT Monitor', page: 'iot', icon: <Cpu size={16} /> },

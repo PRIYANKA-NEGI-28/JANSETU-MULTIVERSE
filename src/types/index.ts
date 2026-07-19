@@ -31,4 +31,4 @@ export interface Department {
   created_at: string;
 }
 
-export type Page = 'home' | 'submit' | 'track' | 'admin' | 'hazardmap' | 'rti' | 'iot';
+export type Page = 'home' | 'submit' | 'track' | 'admin' | 'hazardmap' | 'rti' | 'iot' | 'grievance';
