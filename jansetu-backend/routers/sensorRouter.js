@@ -83,26 +83,10 @@ router.post('/', catchAsync(async (req, res) => {
     try {
       const result = await recordSensorFault(device_id, type || 'UNKNOWN', location);
       
-      // Attempt to save complaint to graph
-      try {
-        await createComplaintNode(complaintData);
-      } catch (err) {
-        console.warn('Failed to save IoT complaint to Graph, saving to SQLite fallback', err.message);
-        saveComplaint(complaintData);
-      }
-      // Broadcast sensor alert AND complaint to all connected clients
-      const sensorData = result.records[0]?.get('a').properties;
-      broadcast('new_sensor_alert', sensorData);
-      broadcast('new_complaint', complaintData);
-      
-      return res.status(201).json({
-        success: true,
-        message: 'Fault anomaly registered and complaint filed automatically',
-        data: sensorData
-      });
-    } catch (err) {
-      console.warn('Neo4j POST /api/sensor failed, saving to SQLite fallback');
-      const alert = {
+      // The graph.js functions catch their own Neo4j errors and return mock data.
+      // Therefore, this try block will never throw a Neo4j error, meaning the outer catch is never hit.
+      // We must explicitly save to SQLite here for redundancy!
+      const sensorData = result.records[0]?.get('a').properties || {
         id: 'SENS-' + Date.now(),
         device_id,
         type: type || 'UNKNOWN',
@@ -116,18 +100,38 @@ router.post('/', catchAsync(async (req, res) => {
         area: location.ward,
         createdAt: new Date().toISOString()
       };
-      saveSensorAlert(alert);
-      saveComplaint(complaintData); // Also save the complaint to sqlite
       
-      // Broadcast even in SQLite fallback mode
-      broadcast('new_sensor_alert', alert);
+      // Save the sensor alert to SQLite fallback DB
+      saveSensorAlert({
+        id: sensorData.id,
+        device_id,
+        type: type || 'UNKNOWN',
+        status: 'FAULT',
+        lat: location.lat,
+        lng: location.lng,
+        ward: location.ward,
+        department: location.department,
+        description: `Automatic fault detected by ${device_id}`,
+        severity: 'HIGH',
+        area: location.ward,
+        createdAt: sensorData.createdAt || new Date().toISOString()
+      });
+      
+      // Attempt to save complaint to graph (this also internally saves to SQLite)
+      await createComplaintNode(complaintData);
+      
+      // Broadcast sensor alert AND complaint to all connected clients
+      broadcast('new_sensor_alert', sensorData);
       broadcast('new_complaint', complaintData);
       
       return res.status(201).json({
         success: true,
-        message: 'Fault and complaint registered locally',
-        data: alert
+        message: 'Fault anomaly registered and complaint filed automatically',
+        data: sensorData
       });
+    } catch (err) {
+      console.warn('POST /api/sensor encountered a fatal error:', err.message);
+      return res.status(500).json({ success: false, error: err.message });
     }
   } else if (status === 'RESOLVED') {
     try {
