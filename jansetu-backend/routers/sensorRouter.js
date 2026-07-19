@@ -37,9 +37,12 @@ router.get('/', async (req, res) => {
 // POST /api/sensor - Intercept Arduino UNO Q node telemetry
 router.post('/', async (req, res) => {
   try {
-    const { device_id, status, type } = req.body;
+    // Arduino could be sending deviceId instead of device_id depending on the hardware code
+    const device_id = req.body.device_id || req.body.deviceId;
+    const { status, type } = req.body;
     
     if (!device_id || !status) {
+      console.log('Rejected sensor payload:', req.body);
       return res.status(400).json({ success: false, error: 'Missing device_id or status' });
     }
 

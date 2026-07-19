@@ -31,7 +31,8 @@ app.use((req, res, next) => {
 });
 // Routers
 app.use('/api/complaint', complaintRouter);
-app.use('/api/sensor', sensorRouter);
+// Parse ALL payload types as JSON for the sensor endpoint since IoT devices often send raw text without correct headers
+app.use('/api/sensor', express.json({ type: '*/*' }), sensorRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/drafter', drafterRouter);
 app.use('/api/admin', adminRouter);
