@@ -20,7 +20,15 @@ router.get('/', async (req, res) => {
       ORDER BY a.createdAt DESC
     `;
     const result = await runQuery(query);
-    const alerts = result.records.map(r => r.get('a').properties);
+    const alerts = result.records.map(r => {
+      const props = r.get('a').properties;
+      if (props.createdAt && typeof props.createdAt === 'object' && props.createdAt.year) {
+        // Convert Neo4j DateTime object to ISO string
+        const { year, month, day, hour, minute, second } = props.createdAt;
+        props.createdAt = new Date(year.low, month.low - 1, day.low, hour?.low || 0, minute?.low || 0, second?.low || 0).toISOString();
+      }
+      return props;
+    });
     return res.json({ success: true, alerts });
   } catch (err) {
     console.warn('Neo4j GET /api/sensor failed, using SQLite fallback');
