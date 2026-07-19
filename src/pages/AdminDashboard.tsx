@@ -203,11 +203,17 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
     ...(officers || []).map(o => o.department).filter(Boolean),
   ])).sort();
 
-  const filtered = localComplaints.filter(c => {
-    const matchStatus = statusFilter === 'ALL' || c.status === statusFilter;
-    const matchUrgency = urgencyFilter === 'ALL' || c.urgency === urgencyFilter;
-    return matchStatus && matchUrgency;
-  });
+  const filtered = localComplaints
+    .filter(c => {
+      const matchStatus = statusFilter === 'ALL' || c.status === statusFilter;
+      const matchUrgency = urgencyFilter === 'ALL' || c.urgency === urgencyFilter;
+      return matchStatus && matchUrgency;
+    })
+    .sort((a, b) => {
+      const timeA = new Date(a.created_at || 0).getTime();
+      const timeB = new Date(b.created_at || 0).getTime();
+      return timeA - timeB; // Increasing order time-wise (oldest first)
+    });
 
   const stats = {
     total: localComplaints.length,

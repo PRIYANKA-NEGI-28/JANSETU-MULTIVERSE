@@ -51,12 +51,23 @@ router.post('/', catchAsync(async (req, res) => {
     return res.status(400).json({ success: false, error: 'Missing device_id or status' });
   }
 
+  // Strict Device and Status Validation
+  if (!device_id.toUpperCase().includes('UNO_Q')) {
+    console.log('Rejected sensor payload: Device must be a UNO Q unit.');
+    return res.status(403).json({ success: false, error: 'Unauthorized device' });
+  }
+
+  if (status !== 'FAULT') {
+    console.log('Ignored sensor payload: Status is not FAULT.');
+    return res.status(200).json({ success: true, message: 'Ignored non-fault telemetry' });
+  }
+
   if (status === 'FAULT') {
     const location = {
       lat: req.body.lat !== undefined ? parseFloat(req.body.lat) : FALLBACK_PROFILE.lat,
       lng: req.body.lng !== undefined ? parseFloat(req.body.lng) : FALLBACK_PROFILE.lng,
-      ward: req.body.ward || FALLBACK_PROFILE.ward,
-      department: req.body.department || FALLBACK_PROFILE.department
+      ward: 'Sector 135',
+      department: 'Municipal Corporation / General Administration'
     };
     
     // Automatically file a persistent complaint for the maintenance team
@@ -64,7 +75,7 @@ router.post('/', catchAsync(async (req, res) => {
     const complaintData = {
       id: complaintId,
       complaint_number: complaintId,
-      citizenName: 'Anonymous Citizen (IoT Monitor)',
+      citizenName: 'IoT',
       citizenPhone: 'N/A',
       rawText: `Automatic fault detected by sensor ${device_id}. Immediate maintenance required.`,
       language: 'en',
@@ -72,7 +83,7 @@ router.post('/', catchAsync(async (req, res) => {
       department: location.department,
       area: location.ward,
       ward: location.ward,
-      issueType: type === 'STREET_LIGHT' ? 'Street Light Issue' : type === 'GAS_LEAK' ? 'Gas Leakage' : 'Infrastructure Fault',
+      issueType: 'Street light damage',
       lat: location.lat,
       lng: location.lng,
       imageUrl: null,
