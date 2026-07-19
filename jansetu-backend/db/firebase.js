@@ -6,14 +6,21 @@ let db;
 
 function initFirebase() {
   try {
-    const serviceAccountPath = path.join(__dirname, '..', 'firebase-service-account.json');
-    if (!fs.existsSync(serviceAccountPath)) {
-      console.warn('⚠️ Firebase credentials not found at', serviceAccountPath);
-      console.warn('Please add your firebase-service-account.json file. For now, running in mock mode (in-memory only for safety).');
-      return false; // Mock mode indicator
-    }
+    let serviceAccount;
 
-    const serviceAccount = require(serviceAccountPath);
+    // Check for environment variable first (used in Render production)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } else {
+      // Fallback to local file for development
+      const serviceAccountPath = path.join(__dirname, '..', 'firebase-service-account.json');
+      if (!fs.existsSync(serviceAccountPath)) {
+        console.warn('⚠️ Firebase credentials not found in env or at', serviceAccountPath);
+        console.warn('Please set FIREBASE_SERVICE_ACCOUNT env var or add firebase-service-account.json. For now, running in mock mode.');
+        return false; // Mock mode indicator
+      }
+      serviceAccount = require(serviceAccountPath);
+    }
     
     // Only initialize if apps length is 0
     if (!admin.apps.length) {
