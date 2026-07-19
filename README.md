@@ -1,19 +1,19 @@
 # JanSetu Multiverse
 
-A graph-powered bilingual civic intelligence platform that connects citizens, complaints, locations, and government departments to streamline infrastructure resolution.
+A graph-powered multilingual civic intelligence platform that connects citizens, complaints, locations, and government departments to streamline infrastructure resolution.
 
 ---
 
 ## About
 
-JanSetu Multiverse is a platform that simplifies civic issue reporting and tracking. It resolves routing inefficiency, lack of public accountability, and duplicate reports. The project serves citizens who want to report issues via voice or text in Hindi or English, and administrators who monitor and assign complaints.
+JanSetu Multiverse is a platform that simplifies civic issue reporting and tracking. It resolves routing inefficiency, lack of public accountability, and duplicate reports. The project serves citizens who want to report issues via voice or text in multiple regional Indian languages (including Hindi, English, and others), and administrators who monitor and assign complaints.
 
 ---
 
 ## Features
 
-* Bilingual support with Hindi and English interface toggles.
-* Voice-to-text complaint submission in Hindi or English with auto-transcription.
+* Multilingual support with regional language interface toggles.
+* Voice-to-text complaint submission in multiple regional Indian languages with auto-transcription.
 * Rule-based automatic complaint analysis, urgency detection, and department routing.
 * Interactive live maps featuring proximity-based complaint and sensor hazard clustering.
 * Automated Right to Information (RTI) application generator with step-by-step query builder.
@@ -119,7 +119,7 @@ NEO4J_PASSWORD=your_secure_password
 For the web frontend, you can optionally configure:
 
 ```env
-VITE_BACKEND_URL=http://localhost:3000
+VITE_BACKEND_URL=https://jansetu-multiverse.onrender.com
 ```
 
 ---
@@ -137,13 +137,13 @@ VITE_BACKEND_URL=http://localhost:3000
 
 * Integrate production NPU hardware acceleration for local LLM execution.
 * Enable offline-first local database synchronization for low-connectivity regions.
-* Support additional regional Indian languages for voice reporting.
+* Expand multilingual voice-to-text support to cover all 22 scheduled Indian languages.
 
 ---
 
 ## Contributors
 
-* Ritu Raj Sinha
-* Rishav Raj
-* Divyansh Gupta
-* Rewas Khatri
+* Ritu Raj Sinha - 
+* Rishav Raj -
+* Divyansh Gupta - 
+* Priyanka Negi - [priyankaviveknegi@gmail.com]
