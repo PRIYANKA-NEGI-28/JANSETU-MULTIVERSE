@@ -9,7 +9,7 @@ if (!fs.existsSync(dbDir)) {
 }
 
 const dbFile = path.join(dbDir, 'store.sqlite');
-const db = new Database(dbFile);
+const db = new Database(dbFile, { timeout: 3000 });
 
 function initSQLite() {
   db.exec(`

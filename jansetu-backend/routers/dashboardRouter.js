@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { runQuery } = require('../db/graph');
 const { getRtiDrafts, getAllComplaints, getComplaintsByPhone, getComplaintByNumber } = require('../db/sqlite');
+const catchAsync = require('../utils/catchAsync');
+const { broadcast } = require('../ws/broadcast');
 
 // POST /api/dashboard - RPC endpoint for Neo4j proxy operations
-router.post('/', async (req, res) => {
-  try {
+router.post('/', catchAsync(async (req, res) => {
     const { action, params } = req.body;
     
     if (action === 'getComplaintByNumber') {
@@ -114,29 +115,27 @@ router.post('/', async (req, res) => {
 
     if (action === 'assignOfficer') {
       assignOfficer(params.complaintId, params.officerId);
+      broadcast('complaint_updated', { id: params.complaintId, status: 'ASSIGNED', officerId: params.officerId });
       return res.json({ success: true, data: { success: true } });
     }
 
     if (action === 'escalateComplaint') {
       escalateComplaint(params.complaintId, params.escalationOfficerId);
+      broadcast('complaint_updated', { id: params.complaintId, status: 'ESCALATED', officerId: params.escalationOfficerId });
       return res.json({ success: true, data: { success: true } });
     }
 
     if (action === 'updateStatus') {
       updateComplaintStatus(params.id, params.status);
+      broadcast('complaint_updated', { id: params.id, status: params.status });
       return res.json({ success: true, data: { success: true } });
     }
     
-    return res.status(400).json({ error: 'Unknown action' });
-  } catch (error) {
-    console.error('RPC Error:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
+    return res.status(400).json({ success: false, error: 'Unknown action' });
+}));
 
-// GET /api/dashboard - Fetch data for the dashboard
-router.get('/', async (req, res) => {
-  try {
+// GET /api/dashboard - Dashboard initialization payload
+router.get('/', catchAsync(async (req, res) => {
     // 4. Fetch RTI drafts from SQLite (this should work locally)
     const rtiDrafts = getRtiDrafts(50); // adjust limit as needed
 
@@ -232,15 +231,10 @@ router.get('/', async (req, res) => {
         rtiDrafts
       }
     });
-  } catch (error) {
-    console.error('Error fetching dashboard data:', error);
-    res.status(500).json({ success: false, error: 'Internal Server Error' });
-  }
-});
+}));
 
-// PATCH /api/complaint/:id - Update complaint/anomaly structural property node values
-router.patch('/complaint/:id', async (req, res) => {
-  try {
+// PATCH /api/dashboard/complaint/:id
+router.patch('/complaint/:id', catchAsync(async (req, res) => {
     const { id } = req.params;
     const { status, threat_indicator } = req.body;
 
@@ -278,10 +272,6 @@ router.patch('/complaint/:id', async (req, res) => {
       message: 'Structural properties updated',
       data: result.records[0].get('n').properties
     });
-  } catch (error) {
-    console.error('Error updating properties:', error);
-    res.status(500).json({ success: false, error: 'Internal Server Error' });
-  }
-});
+}));
 
 module.exports = router;

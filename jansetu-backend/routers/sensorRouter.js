@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { recordSensorFault, resolveSensorFault, runQuery } = require('../db/graph');
-const { saveSensorAlert, getSensorAlerts } = require('../db/sqlite');
+const { recordSensorFault, resolveSensorFault, runQuery, createComplaintNode } = require('../db/graph');
+const { saveSensorAlert, getSensorAlerts, saveComplaint } = require('../db/sqlite');
+const catchAsync = require('../utils/catchAsync');
+const { broadcast } = require('../ws/broadcast');
 
 // Hardcoded location and assignment profiles mapped to device IDs
 const DEVICE_PROFILES = {
@@ -11,7 +13,7 @@ const DEVICE_PROFILES = {
 const FALLBACK_PROFILE = { lat: 28.6000, lng: 77.2000, ward: 'General Ward', department: 'City Maintenance' };
 
 // GET /api/sensor - Fetch all active sensor anomalies
-router.get('/', async (req, res) => {
+router.get('/', catchAsync(async (req, res) => {
   try {
     const query = `
       MATCH (a:SensorAnomaly)
@@ -40,68 +42,117 @@ router.get('/', async (req, res) => {
       return res.json({ success: true, alerts: [] });
     }
   }
-});
+}));
 
 // POST /api/sensor - Intercept Arduino UNO Q node telemetry
-router.post('/', async (req, res) => {
-  try {
-    // Arduino could be sending deviceId instead of device_id depending on the hardware code
-    const device_id = req.body.device_id || req.body.deviceId;
-    const { status, type } = req.body;
-    
-    if (!device_id || !status) {
-      console.log('Rejected sensor payload:', req.body);
-      return res.status(400).json({ success: false, error: 'Missing device_id or status' });
-    }
+router.post('/', catchAsync(async (req, res) => {
+  // Arduino could be sending deviceId instead of device_id depending on the hardware code
+  const device_id = req.body.device_id || req.body.deviceId;
+  const { status, type } = req.body;
+  
+  if (!device_id || !status) {
+    console.log('Rejected sensor payload:', req.body);
+    return res.status(400).json({ success: false, error: 'Missing device_id or status' });
+  }
 
-    if (status === 'FAULT') {
-      const location = DEVICE_PROFILES[device_id] || FALLBACK_PROFILE;
+  if (status === 'FAULT') {
+    const location = DEVICE_PROFILES[device_id] || FALLBACK_PROFILE;
+    
+    // Automatically file a persistent complaint for the maintenance team
+    const complaintId = 'IOT-CMP-' + Date.now();
+    const complaintData = {
+      id: complaintId,
+      complaint_number: complaintId,
+      citizenName: 'Anonymous Citizen (IoT Monitor)',
+      citizenPhone: 'N/A',
+      rawText: `Automatic fault detected by sensor ${device_id}. Immediate maintenance required.`,
+      language: 'en',
+      summary: `Sensor Fault: ${type || 'UNKNOWN'}`,
+      department: location.department,
+      area: location.ward,
+      ward: location.ward,
+      issueType: type === 'STREET_LIGHT' ? 'Street Light Issue' : type === 'GAS_LEAK' ? 'Gas Leakage' : 'Infrastructure Fault',
+      lat: location.lat,
+      lng: location.lng,
+      imageUrl: null,
+      urgency: 'HIGH',
+      status: 'PENDING',
+      createdAt: new Date().toISOString()
+    };
+    
+    try {
+      const result = await recordSensorFault(device_id, type || 'UNKNOWN', location);
+      
+      // Attempt to save complaint to graph
       try {
-        const result = await recordSensorFault(device_id, type || 'UNKNOWN', location);
-        
-        return res.status(201).json({
-          success: true,
-          message: 'Fault anomaly registered and assigned to department',
-          data: result.records[0]?.get('a').properties
-        });
+        await createComplaintNode(complaintData);
       } catch (err) {
-        console.warn('Neo4j POST /api/sensor failed, saving to SQLite fallback');
-        const alert = {
-          id: 'SENS-' + Date.now(),
-          device_id,
-          type: type || 'UNKNOWN',
-          status: 'FAULT',
-          lat: location.lat,
-          lng: location.lng,
-          ward: location.ward,
-          department: location.department,
-          description: `Automatic fault detected by ${device_id}`,
-          severity: 'HIGH',
-          area: location.ward,
-          createdAt: new Date().toISOString()
-        };
-        saveSensorAlert(alert);
-        return res.status(201).json({
-          success: true,
-          message: 'Fault registered locally',
-          data: alert
-        });
+        console.warn('Failed to save IoT complaint to Graph, saving to SQLite fallback', err.message);
+        saveComplaint(complaintData);
       }
-    } else if (status === 'RESOLVED') {
+      // Broadcast sensor alert AND complaint to all connected clients
+      const sensorData = result.records[0]?.get('a').properties;
+      broadcast('new_sensor_alert', sensorData);
+      broadcast('new_complaint', complaintData);
+      
+      return res.status(201).json({
+        success: true,
+        message: 'Fault anomaly registered and complaint filed automatically',
+        data: sensorData
+      });
+    } catch (err) {
+      console.warn('Neo4j POST /api/sensor failed, saving to SQLite fallback');
+      const alert = {
+        id: 'SENS-' + Date.now(),
+        device_id,
+        type: type || 'UNKNOWN',
+        status: 'FAULT',
+        lat: location.lat,
+        lng: location.lng,
+        ward: location.ward,
+        department: location.department,
+        description: `Automatic fault detected by ${device_id}`,
+        severity: 'HIGH',
+        area: location.ward,
+        createdAt: new Date().toISOString()
+      };
+      saveSensorAlert(alert);
+      saveComplaint(complaintData); // Also save the complaint to sqlite
+      
+      // Broadcast even in SQLite fallback mode
+      broadcast('new_sensor_alert', alert);
+      broadcast('new_complaint', complaintData);
+      
+      return res.status(201).json({
+        success: true,
+        message: 'Fault and complaint registered locally',
+        data: alert
+      });
+    }
+  } else if (status === 'RESOLVED') {
+    try {
       const result = await resolveSensorFault(device_id);
+      
+      // Broadcast resolution to all clients
+      broadcast('sensor_resolved', { device_id, resolvedCount: result.records.length });
       
       return res.status(200).json({
         success: true,
         message: 'Fault anomaly resolved and flags cleared',
         resolvedCount: result.records.length
       });
-    } else {
-      return res.status(400).json({ success: false, error: 'Invalid status' });
+    } catch (err) {
+      console.warn('Neo4j resolve failed:', err.message);
+      broadcast('sensor_resolved', { device_id, resolvedCount: 0 });
+      return res.status(200).json({
+        success: true,
+        message: 'Resolve recorded',
+        resolvedCount: 0
+      });
     }
-  } catch (error) {
-    console.error('Error recording sensor data:', error);
-    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  } else {
+    return res.status(400).json({ success: false, error: 'Invalid status' });
   }
-});
+}));
 
 module.exports = router;

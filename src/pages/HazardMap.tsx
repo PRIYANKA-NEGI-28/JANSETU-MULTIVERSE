@@ -136,7 +136,7 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
   };
 
   const dynamicReports: HazardReport[] = [
-    ...complaints.map(c => ({
+    ...(complaints || []).map(c => ({
       id: c.id,
       lat: (c as any).lat || 28.6139 + (Math.random() - 0.5) * 0.05,
       lng: (c as any).lng || 77.2090 + (Math.random() - 0.5) * 0.05,
@@ -150,7 +150,7 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
       clusterSize: c.similar_count || 1,
       createdAt: c.created_at,
     })),
-    ...sensorAlerts.map(s => ({
+    ...(sensorAlerts || []).map(s => ({
       id: s.id,
       lat: s.lat,
       lng: s.lng,
@@ -338,7 +338,7 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
               />
               
               {/* Heatmap glow rings for critical clusters */}
-              {visibleClusters.filter(c => c.severity === 'CRITICAL' || c.severity === 'HIGH').map(c => {
+              {(visibleClusters || []).filter(c => c.severity === 'CRITICAL' || c.severity === 'HIGH')?.map(c => {
                 const color = c.severity === 'CRITICAL' ? '#ef4444' : '#f97316';
                 return (
                   <Circle 
@@ -350,7 +350,7 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
                 );
               })}
 
-              {visibleClusters.map(c => {
+              {(visibleClusters || [])?.map(c => {
                 const colors: Record<string, string> = { LOW: '#3b82f6', MEDIUM: '#eab308', HIGH: '#f97316', CRITICAL: '#ef4444' };
                 const fill = colors[c.severity];
                 const isSelected = selectedCluster?.id === c.id;
@@ -419,7 +419,7 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
                   </div>
                 </div>
                 <div className="space-y-3">
-                  {selectedCluster.reports.map(r => (
+                  {(selectedCluster?.reports || [])?.map(r => (
                     <div key={r.id} className="bg-gray-50 border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-all duration-300">
                       <div className="flex items-start justify-between gap-2 flex-wrap mb-2">
                         <p className="text-sm font-semibold text-gray-800">{r.description}</p>

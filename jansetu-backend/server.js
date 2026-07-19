@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const http = require('http');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 console.log('Environment variables loaded:');
 console.log('NEO4J_URI:', process.env.NEO4J_URI);
@@ -10,6 +11,7 @@ console.log('NEO4J_PASSWORD:', process.env.NEO4J_PASSWORD ? 'set' : 'not set');
 const { verifyConnection } = require('./db/graph');
 const { initSQLite } = require('./db/sqlite');
 const { sanitizeRecordDates } = require('./db/dateSanitizer');
+const { initWebSocket } = require('./ws/broadcast');
 
 const complaintRouter = require('./routers/complaintRouter');
 const sensorRouter = require('./routers/sensorRouter');
@@ -72,9 +74,14 @@ async function startServer() {
   // RUST-PROOF NEO4J INTEGRATION: Test driver connection before starting the server
   await verifyConnection();
 
+  // Create HTTP server and attach WebSocket to the same port
+  const server = http.createServer(app);
+  initWebSocket(server);
+
   // Listen on '0.0.0.0' to permit external physical edge hardware devices on the local network
-  app.listen(PORT, '0.0.0.0', () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`JanSetu Multiverse backend engine listening at http://0.0.0.0:${PORT}`);
+    console.log(`WebSocket server available at ws://0.0.0.0:${PORT}`);
   });
 }
 
@@ -92,3 +99,4 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Start the server
 startServer();
+

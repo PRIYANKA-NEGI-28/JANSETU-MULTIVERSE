@@ -14,6 +14,7 @@ import {
 } from '../lib/neo4j';
 import { useDashboard } from '../contexts/DashboardContext';
 import { useLang } from '../lib/langContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface AdminDashboardProps {
   onAdminLogout: () => void;
@@ -25,6 +26,8 @@ const STATUS_CONFIG = {
   IN_PROGRESS: { labelKey: 'status_in_progress' as const, color: 'bg-teal-100 text-teal-700', dot: 'bg-teal-500' },
   RESOLVED: { labelKey: 'status_resolved' as const, color: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
   ESCALATED: { labelKey: 'status_escalated' as const, color: 'bg-red-100 text-red-700', dot: 'bg-red-500' },
+  FAULT: { labelKey: 'status_escalated' as const, color: 'bg-orange-100 text-orange-700', dot: 'bg-orange-500' },
+  UNKNOWN: { labelKey: 'status_pending' as const, color: 'bg-gray-100 text-gray-700', dot: 'bg-gray-500' },
 };
 
 const URGENCY_CONFIG = {
@@ -39,6 +42,7 @@ const URGENCY_OPTIONS = ['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 
 export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
   const { T } = useLang();
+  const { toast } = useToast();
   const { complaints: dashboardComplaints, refreshDashboard } = useDashboard();
   const [localComplaints, setLocalComplaints] = useState<Neo4jComplaint[]>([]);
   const [departments, setDepartments] = useState<Neo4jDepartment[]>([]);
@@ -89,13 +93,17 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       });
-      if (!res.ok) throw new Error('Update failed');
+      if (!res.ok) {
+        toast('Unable to sync status with server. Retrying...', 'error');
+        throw new Error('Update failed');
+      }
       
-      setLocalComplaints(prev => prev.map(c =>
+      setLocalComplaints(prev => prev?.map(c =>
         c.id === id ? { ...c, status: status as Neo4jComplaint['status'] } : c
-      ));
+      ) || []);
     } catch (err) {
       console.error('Status update failed:', err);
+      toast('Unable to sync status with server. Retrying...', 'error');
       // Fallback update for mock demo if server fails
       setLocalComplaints(prev => prev.map(c =>
         c.id === id ? { ...c, status: status as Neo4jComplaint['status'] } : c
@@ -113,6 +121,7 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
       await loadData();
     } catch {
       setEscalationResult(T.admin_escalation_failed);
+      toast('Failed to run escalation check. Retrying...', 'error');
     }
     setEscalating(false);
   }
@@ -153,14 +162,22 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
     if (!assignModal) return;
     setAssigning(true);
     try {
-      // Mocked server call
-      await assignOfficerToComplaint(assignModal.complaintId, officerId);
-      setLocalComplaints(prev => prev.map(c =>
+      const res = await assignOfficerToComplaint(assignModal.complaintId, officerId);
+      if (!res.ok) {
+        toast('Unable to sync assignment with server. Retrying...', 'error');
+        throw new Error('Assignment failed');
+      }
+      setLocalComplaints(prev => prev?.map(c => 
         c.id === assignModal.complaintId ? { ...c, status: 'ASSIGNED' as const } : c
-      ));
+      ) || []);
       setAssignModal(null);
+      await loadData();
     } catch (err) {
-      console.error('Assign failed:', err);
+      console.error('Assignment failed:', err);
+      toast('Unable to sync assignment with server. Retrying...', 'error');
+      setLocalComplaints(prev => prev?.map(c => 
+        c.id === assignModal.complaintId ? { ...c, status: 'ASSIGNED' as const } : c
+      ) || []);
     }
     setAssigning(false);
   }
@@ -169,21 +186,29 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
     if (!escalateModal) return;
     setAssigning(true);
     try {
-      // Mocked server call
-      await escalateComplaintToOfficer(escalateModal.complaintId, officerId);
-      setLocalComplaints(prev => prev.map(c =>
+      const res = await escalateComplaintToOfficer(escalateModal.complaintId, officerId);
+      if (!res.ok) {
+        toast('Unable to sync escalation with server. Retrying...', 'error');
+        throw new Error('Escalation failed');
+      }
+      setLocalComplaints(prev => prev?.map(c => 
         c.id === escalateModal.complaintId ? { ...c, status: 'ESCALATED' as const } : c
-      ));
+      ) || []);
       setEscalateModal(null);
+      await loadData();
     } catch (err) {
-      console.error('Escalate failed:', err);
+      console.error('Escalation failed:', err);
+      toast('Unable to sync escalation with server. Retrying...', 'error');
+      setLocalComplaints(prev => prev?.map(c => 
+        c.id === escalateModal.complaintId ? { ...c, status: 'ESCALATED' as const } : c
+      ) || []);
     }
     setAssigning(false);
   }
 
   const departmentNames = Array.from(new Set([
-    ...localComplaints.map(c => c.department).filter(Boolean),
-    ...officers.map(o => o.department).filter(Boolean),
+    ...(localComplaints || []).map(c => c.department).filter(Boolean),
+    ...(officers || []).map(o => o.department).filter(Boolean),
   ])).sort();
 
   const filtered = localComplaints.filter(c => {
@@ -321,7 +346,7 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {filtered.map(complaint => (
+                      {(filtered || [])?.map(complaint => (
                         <tr key={complaint.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-4 py-3">
                             <span className="font-mono text-xs font-bold text-gray-600">{complaint.complaint_number}</span>
@@ -355,9 +380,9 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full font-bold whitespace-nowrap ${STATUS_CONFIG[complaint.status].color}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${STATUS_CONFIG[complaint.status].dot}`}></span>
-                              {T[STATUS_CONFIG[complaint.status].labelKey]}
+                            <span className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full font-bold whitespace-nowrap ${(STATUS_CONFIG[complaint.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN).color}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${(STATUS_CONFIG[complaint.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN).dot}`}></span>
+                              {T[(STATUS_CONFIG[complaint.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN).labelKey]}
                             </span>
                           </td>
                           <td className="px-4 py-3">
@@ -370,7 +395,7 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
                                   className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white appearance-none pr-6 disabled:opacity-50"
                                 >
                                   {Object.keys(STATUS_CONFIG).map(s => (
-                                    <option key={s} value={s}>{T[STATUS_CONFIG[s as keyof typeof STATUS_CONFIG].labelKey]}</option>
+                                    <option key={s} value={s}>{T[(STATUS_CONFIG[s as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN).labelKey]}</option>
                                   ))}
                                 </select>
                                 <ChevronDown size={10} className="absolute right-1.5 top-2 text-gray-400 pointer-events-none" />
@@ -416,7 +441,7 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
                 <BarChart2 size={32} className="text-gray-200 mx-auto mb-3" />
                 <p className="text-gray-400 text-sm">{T.admin_no_depts}</p>
               </div>
-            ) : departments.map(dept => {
+            ) : (departments || [])?.map(dept => {
               const resolutionRate = dept.total_complaints > 0
                 ? Math.round((dept.resolved_complaints / dept.total_complaints) * 100)
                 : 0;
@@ -489,7 +514,7 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
                   <h3 className="font-bold text-gray-900">{T.admin_hotspots}</h3>
                 </div>
                 <div className="space-y-3">
-                  {graphStats.hotspots.map((h, i) => {
+                  {(graphStats?.hotspots || [])?.map((h, i) => {
                     const maxCount = graphStats.hotspots[0]?.count || 1;
                     const pct = Math.round((h.count / maxCount) * 100);
                     return (
@@ -568,7 +593,7 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
                 className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
               >
                 <option value="ALL">{T.admin_officers_all_depts}</option>
-                {departmentNames.map(d => (
+                {(departmentNames || [])?.map(d => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
@@ -588,7 +613,7 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {officers.map(officer => (
+                {(officers || [])?.map(officer => (
                   <div key={officer.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -637,27 +662,39 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
               </div>
               <p className="text-sm text-gray-500 mb-4">{T.admin_officers_assign_dept}: <span className="font-semibold text-gray-700">{assignModal.department}</span></p>
               <div className="max-h-64 overflow-y-auto space-y-2">
-                {(officerDeptFilter === 'ALL' ? officers : officers.filter(o => assignModal.department?.includes(o.department))).length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-4">{T.admin_officers_none}</p>
-                ) : (
-                  (officerDeptFilter === 'ALL' ? officers.filter(o => assignModal.department?.includes(o.department)) : officers.filter(o => assignModal.department?.includes(o.department))).map(officer => (
-                    <button
-                      key={officer.id}
-                      onClick={() => handleAssignOfficer(officer.id)}
-                      disabled={assigning}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-orange-300 hover:bg-orange-50 transition-colors text-left disabled:opacity-50"
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">{officer.name.charAt(0)}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-gray-900 truncate">{officer.name}</p>
-                        <p className="text-xs text-gray-500">{officer.rank} · {officer.badge_number}</p>
-                      </div>
-                      {officer.phone && (
-                        <span className="text-xs text-gray-400 flex items-center gap-1"><Phone size={10} />{officer.phone}</span>
-                      )}
-                    </button>
-                  ))
-                )}
+                {(() => {
+                  let availableOfficers = officers.filter(o => 
+                    assignModal.department?.toLowerCase().includes(o.department.toLowerCase()) || 
+                    o.department.toLowerCase().includes(assignModal.department?.toLowerCase() || '')
+                  );
+                  
+                  // Fallback to all officers if no direct department match is found
+                  if (availableOfficers.length === 0) {
+                    availableOfficers = officers;
+                  }
+
+                  return availableOfficers.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-4">{T.admin_officers_none}</p>
+                  ) : (
+                    availableOfficers.map(officer => (
+                      <button
+                        key={officer.id}
+                        onClick={() => handleAssignOfficer(officer.id)}
+                        disabled={assigning}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-orange-300 hover:bg-orange-50 transition-colors text-left disabled:opacity-50"
+                      >
+                        <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">{officer.name.charAt(0)}</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-gray-900 truncate">{officer.name}</p>
+                          <p className="text-xs text-gray-500">{officer.rank} · {officer.badge_number}</p>
+                        </div>
+                        {officer.phone && (
+                          <span className="text-xs text-gray-400 flex items-center gap-1"><Phone size={10} />{officer.phone}</span>
+                        )}
+                      </button>
+                    ))
+                  );
+                })()}
               </div>
               <button onClick={() => setAssignModal(null)} className="w-full mt-4 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl transition-colors">{T.admin_officers_cancel}</button>
             </div>
@@ -675,10 +712,18 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
               <p className="text-sm text-gray-500 mb-4">{T.admin_officers_escalate_select}</p>
               <div className="max-h-64 overflow-y-auto space-y-2">
                 {(() => {
-                  const deptOfficers = officers.filter(o => {
-                    const complaint = localComplaints.find(c => c.id === escalateModal.complaintId);
-                    return complaint?.department?.includes(o.department) && o.rank === 'Senior Level';
+                  const complaint = localComplaints.find(c => c.id === escalateModal.complaintId);
+                  
+                  let deptOfficers = officers.filter(o => {
+                    const matchDept = complaint?.department?.toLowerCase().includes(o.department.toLowerCase()) || 
+                                      o.department.toLowerCase().includes(complaint?.department?.toLowerCase() || '');
+                    return matchDept && o.rank === 'Senior Level';
                   });
+
+                  // Fallback to all senior officers if no direct department match
+                  if (deptOfficers.length === 0) {
+                    deptOfficers = officers.filter(o => o.rank === 'Senior Level');
+                  }
 
                   if (deptOfficers.length === 0) {
                     return <p className="text-sm text-gray-400 text-center py-4">{T.admin_officers_none}</p>;

@@ -39,7 +39,11 @@ export const useDashboard = () => {
   return context;
 };
 
+import { useToast } from './ToastContext';
+import { useWebSocket } from '../hooks/useWebSocket';
+
 export const DashboardProvider = ({ children }: { children: ReactNode }) => {
+  const { toast } = useToast();
   const [complaints, setComplaints] = useState<Neo4jComplaint[]>([]);
   const [sensorAlerts, setSensorAlerts] = useState<SensorAlert[]>([]);
   const [globalMetrics, setGlobalMetrics] = useState<GlobalMetrics>({
@@ -78,24 +82,38 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
           clustersDetected: criticalZonesCount,
         });
         setSensorAlerts(sensorData.alerts || []);
-        setNetworkError(false);
+        if (networkError) setNetworkError(false);
       } else {
-        setNetworkError(true);
+        if (!networkError) {
+          setNetworkError(true);
+          toast("Unable to sync with server. Retrying...", "error");
+        }
       }
     } catch (error) {
       console.error("Dashboard fetch error:", error);
-      setNetworkError(true);
+      if (!networkError) {
+        setNetworkError(true);
+        toast("Unable to sync with server. Retrying...", "error");
+      }
     }
   };
+
+  const { subscribe } = useWebSocket();
 
   useEffect(() => {
     fetchData(); // Initial fetch
     
-    // High-frequency long-polling
-    const interval = setInterval(fetchData, 5000); 
+    // Listen for WebSocket pushes for instant updates
+    const unsubscribe = subscribe((msg) => {
+      if (['new_complaint', 'new_sensor_alert', 'sensor_resolved', 'complaint_updated'].includes(msg.type)) {
+        // We can optimistically update or just trigger a fresh fetch
+        // A fetch ensures all metrics (clusters, critical zones) stay perfectly in sync
+        fetchData();
+      }
+    });
     
-    return () => clearInterval(interval);
-  }, []);
+    return () => unsubscribe();
+  }, [subscribe]);
 
   return (
     <DashboardContext.Provider value={{

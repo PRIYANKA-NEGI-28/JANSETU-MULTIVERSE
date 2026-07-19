@@ -5,8 +5,10 @@ const path = require('path');
 const { saveRtiDraft } = require('../db/sqlite');
 const crypto = require('crypto');
 
+const catchAsync = require('../utils/catchAsync');
+
 // POST /api/drafter - Spawns NPU child process for local LLM inference
-router.post('/', (req, res) => {
+router.post('/', catchAsync(async (req, res) => {
   const { authorityType, applicantDetails, informationRequired } = req.body;
   
   if (!authorityType || !informationRequired) {
@@ -25,6 +27,15 @@ Ensure the tone is formal and compliant with standard bureaucratic protocol.`;
 
   let output = '';
   let errorOutput = '';
+  let isKilled = false;
+
+  // Enforce strict 15-second timeout
+  const timeoutId = setTimeout(() => {
+    isKilled = true;
+    pythonProcess.kill('SIGKILL');
+    console.error('LLM Process Timed Out (15s limit). Killed process.');
+    return res.status(504).json({ success: false, error: 'Gateway Timeout: LLM script exceeded 15s limit' });
+  }, 15000);
 
   // Collect text stream chunks over the stdout event channel natively
   pythonProcess.stdout.on('data', (data) => {
@@ -37,6 +48,9 @@ Ensure the tone is formal and compliant with standard bureaucratic protocol.`;
   });
 
   pythonProcess.on('close', (code) => {
+    if (isKilled) return; // Prevent double response if already timed out
+    clearTimeout(timeoutId);
+
     if (code !== 0) {
       console.error(`Python process exited with code ${code}: ${errorOutput}`);
       return res.status(500).json({ success: false, error: 'LLM inference failed', details: errorOutput });
@@ -57,6 +71,6 @@ Ensure the tone is formal and compliant with standard bureaucratic protocol.`;
       res.status(200).json({ success: true, data: { response: output.trim() }, id });
     }
   });
-});
+}));
 
 module.exports = router;

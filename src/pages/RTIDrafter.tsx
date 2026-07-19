@@ -201,8 +201,11 @@ function parseQueryToRequests(query: string, category: string, from: string, to:
 
 const STEP_LABELS = ['Authority Type', 'Applicant Details', 'Public Authority', 'Information Required', 'Review & Generate'];
 
+import { useToast } from '../contexts/ToastContext';
+
 export default function RTIDrafter({ onNavigate }: RTIDrafterProps) {
   const { T } = useLang();
+  const { toast } = useToast();
   const [step, setStep] = useState<Step>(1);
   const [form, setForm] = useState<RTIForm>({
     applicantName: '', fatherName: '', address: '', city: '', state: '', pincode: '', phone: '', email: '',
@@ -234,12 +237,17 @@ export default function RTIDrafter({ onNavigate }: RTIDrafterProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
       });
-      if (!res.ok) throw new Error('Failed to generate draft');
+      if (!res.ok) {
+        toast('Unable to reach AI server. Using local template fallback.', 'error');
+        throw new Error('Failed to generate draft');
+      }
       const data = await res.json();
-      setGeneratedText(data.draftText || generateRTI(form)); // fallback just in case
+      setGeneratedText(data.draftText || generateRTI(form));
     } catch (err) {
       console.error(err);
-      // Fallback to client-side generation if server fails for demo
+      if (!(err instanceof Error && err.message === 'Failed to generate draft')) {
+        toast('Unable to reach AI server. Using local template fallback.', 'error');
+      }
       setGeneratedText(generateRTI(form));
     } finally {
       setGenerating(false);

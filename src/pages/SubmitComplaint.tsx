@@ -8,6 +8,7 @@ import { LOCATIONS } from '../lib/locations';
 import type { Page } from '../types';
 import type { AuthUser } from '../lib/auth';
 import { useLang } from '../lib/langContext';
+import { useToast } from '../contexts/ToastContext';
 import ScrollReveal from '../components/ScrollReveal';
 
 interface SubmitComplaintProps {
@@ -66,7 +67,8 @@ interface SpeechRecognitionErrorEvent extends Event {
 }
 
 export default function SubmitComplaint({ onNavigate, user, location, onRequestLocation }: SubmitComplaintProps) {
-  const { T } = useLang();
+  const { T, lang } = useLang();
+  const { toast } = useToast();
   const [form, setForm] = useState({
     name: user?.name || '',
     phone: '',
@@ -326,6 +328,7 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
       setSubmitted(complaintNumber);
     } catch {
       setError(T.submit_error_submit);
+      toast('Unable to sync with server. Retrying...', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -620,7 +623,7 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
                 <div className="flex items-center gap-2 flex-wrap mb-4">
                   <AlertTriangle size={13} className="text-red-500" />
                   <span className="text-xs text-gray-500 font-medium">{T.submit_risk_factors}</span>
-                  {analysis.risk_tags.map(tag => (
+                  {(analysis.risk_tags || [])?.map(tag => (
                     <span key={tag} className="text-xs px-2 py-0.5 bg-red-50 text-red-600 rounded-full font-medium">{tag}</span>
                   ))}
                 </div>
