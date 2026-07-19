@@ -1,13 +1,13 @@
 # JanSetu Multiverse
 
-A graph-powered, multilingual civic intelligence platform that bridges the gap between citizens, public infrastructure, and municipal administration. By integrating a **Web Dashboard**, an **Expo Mobile App**, and **IoT Edge Sensors**, JanSetu Multiverse automates issue detection, deduplicates complaints via graph intelligence, and streamlines department-wise resolution.
+A Firestore-powered, multilingual civic intelligence platform that bridges the gap between citizens, public infrastructure, and municipal administration. By integrating a **Web Dashboard**, an **Expo Mobile App**, and **IoT Edge Sensors**, JanSetu Multiverse automates issue detection, resolves duplicate complaints, and streamlines department-wise resolution.
 
 ---
 
 ##  System Overview & Architecture
 
 JanSetu Multiverse is comprised of three main layers working in sync:
-1. **Web Portal & Backend Engine**: Serves as the administrative control center and provides graph analytics (Neo4j) alongside a general public portal.
+1. **Web Portal & Backend Engine**: Serves as the administrative control center and provides real-time complaint analytics (Firebase Firestore) alongside a general public portal.
 2. **Mobile Application (Expo/React Native)**: Empowers citizens to report and track complaints on-the-go via text, voice, and interactive hazard maps.
 3. **IoT Edge Nodes (Arduino UNO Q)**: Monitors physical civic infrastructure (like streetlights) and reports structural failures directly to the cloud.
 
@@ -20,8 +20,7 @@ graph TD
     PythonAgent -->|HTTPS POST| Backend[Express Backend Engine]
     Mobile -->|API Requests| Backend
     Web -->|API Proxy| Backend
-    Backend -->|SQLite / Transactional| DB_SQL[(SQLite DB)]
-    Backend -->|Neo4j / Graph Intelligence| DB_Graph[(Neo4j Graph Database)]
+    Backend -->|Firebase Admin SDK| DB_Firebase[(Firebase Firestore)]
 ```
 
 ---
@@ -30,11 +29,11 @@ graph TD
 
 | Component | Tech Stack / Libraries |
 | :--- | :--- |
-| **Backend** | Node.js, Express, Python 3, `llama-cpp-python` (Local LLM Bridge) |
+| **Backend** | Node.js, Express, Python 3, `llama-cpp-python` (Local LLM Bridge), `firebase-admin` |
 | **Web Frontend** | React 18, Vite, Tailwind CSS, TypeScript, Leaflet Maps |
 | **Mobile App** | Expo (React Native), Expo Router, TypeScript, NativeWind, Supabase Client |
 | **IoT Edge Node** | Arduino C++ (MCU firmware), Python 3 (MPU RouterBridge RPC & Requests) |
-| **Databases** | SQLite (Transactional store), Neo4j (Graph relations & proximity clustering) |
+| **Databases** | Firebase Firestore (Real-time document store) |
 
 ---
 
@@ -45,7 +44,7 @@ JANSETU-MULTIVERSE/
 ├── app/                  # Expo mobile application layouts, screens, and routes
 ├── jansetu-backend/      # Express backend server, database adapters, and AI scripts
 │   ├── ai/               # Local Qwen LLM, YOLO anomaly, and RTI drafting scripts
-│   ├── db/               # Neo4j and SQLite database adapters
+│   ├── db/               # Firebase database adapter
 │   └── routers/          # Express API route handlers
 ├── lib/                  # Shared business logic, translations, and database helpers
 ├── src/                  # Web frontend source code (components, pages, styles)
@@ -58,12 +57,12 @@ JANSETU-MULTIVERSE/
 ##  1. Web Application & Backend Engine
 
 ### About
-The Web Application serves as the administrative interface and analytical engine. It handles data persistence, AI-driven analysis, automatic routing to local departments, and Neo4j graph visualizations for clustering duplicate complaints.
+The Web Application serves as the administrative interface and analytical engine. It handles data persistence using Firebase Firestore, AI-driven analysis, automatic routing to local departments, and real-time dashboard tracking.
 
 ### Key Features
 * **Bilingual Dashboard**: Toggles interface languages (Hindi and English).
 * **AI-Assisted Routing**: Categorizes raw complaints, predicts urgency, and routes them to appropriate departments.
-* **Proximity Clustering**: Automatically groups duplicate complaints within 300 meters using Neo4j spatial graph relationships.
+* **Complaint Association**: Automatically groups similar complaints within the same ward and issue category.
 * **Interactive Live Maps**: Aggregates clustered complaints and IoT anomalies for municipal officers.
 * **SLA & Escalation Tracker**: Enables administrators to review officer assignments and SLAs.
 
@@ -72,7 +71,7 @@ The Web Application serves as the administrative interface and analytical engine
 #### Prerequisites
 * Node.js (version 18 or higher)
 * Python 3
-* Neo4j Database instance (Local or AuraDB)
+* Firebase Firestore project credentials (`firebase-service-account.json`)
 * Local LLM package: `pip install llama-cpp-python`
 
 #### Setup Steps
@@ -83,14 +82,12 @@ The Web Application serves as the administrative interface and analytical engine
    cd JANSETU-MULTIVERSE
    ```
 
-2. **Configure Environment Variables:**
-   Create a `.env` file in the **project root directory** (or inside `jansetu-backend` depending on launch method):
+2. **Configure Environment Variables & Credentials:**
+   Create a `.env` file inside the `jansetu-backend` directory (see [Environment Variables](#environment-variables)):
    ```env
    PORT=3000
-   NEO4J_URI=bolt://localhost:7687
-   NEO4J_USERNAME=neo4j
-   NEO4J_PASSWORD=your_secure_password
    ```
+   Download your Firebase service account private key JSON file, rename it to `firebase-service-account.json`, and place it in the `jansetu-backend` root folder.
 
 3. **Install and Start Backend Engine:**
    ```bash
