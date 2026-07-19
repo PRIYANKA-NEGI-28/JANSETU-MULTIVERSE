@@ -44,7 +44,8 @@ function initSQLite() {
       imageUrl TEXT,
       urgency TEXT,
       status TEXT,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      similar_count INTEGER DEFAULT 1
     );
 
     CREATE TABLE IF NOT EXISTS sensor_alerts (

@@ -87,7 +87,7 @@ function buildClusters(reports: HazardReport[]): Cluster[] {
       id: r.id,
       lat: nearby.reduce((s, o) => s + o.lat, 0) / nearby.length,
       lng: nearby.reduce((s, o) => s + o.lng, 0) / nearby.length,
-      count: nearby.length,
+      count: nearby.reduce((s, o) => s + (o.clusterSize || 1), 0),
       severity: maxSev,
       type: r.type,
       area: r.area,
@@ -109,7 +109,7 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
   const { sensorAlerts, complaints } = useDashboard();
   
   // Create a combined list of hazards from real context state
-  // We'll map sensorAlerts and complaints to the HazardReport interface
+  // We'll map complaints to the HazardReport interface (sensors already auto-create complaints)
   const mapIssueToHazard = (issueStr: string = ''): 'wire' | 'pothole' | 'flood' | 'collapse' | 'fire_hazard' | 'street_light' => {
     const s = issueStr.toLowerCase();
     if (s.includes('light') || s.includes('lamp')) return 'street_light';
@@ -134,20 +134,6 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
       status: (c.status === 'RESOLVED' ? 'RESOLVED' : c.status === 'ASSIGNED' || c.status === 'IN_PROGRESS' ? 'ACKNOWLEDGED' : 'OPEN') as any,
       clusterSize: c.similar_count || 1,
       createdAt: c.created_at,
-    })),
-    ...(sensorAlerts || []).map(s => ({
-      id: s.id,
-      lat: s.lat,
-      lng: s.lng,
-      type: s.type.toLowerCase().includes('light') ? 'street_light' : mapIssueToHazard(s.type),
-      severity: s.severity,
-      description: s.description,
-      photoUrl: null,
-      reporterName: 'Automated Sensor',
-      area: s.area,
-      status: 'OPEN' as const,
-      clusterSize: 1,
-      createdAt: s.createdAt,
     }))
   ];
   

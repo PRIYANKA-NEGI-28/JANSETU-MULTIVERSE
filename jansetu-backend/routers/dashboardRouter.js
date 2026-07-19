@@ -55,7 +55,7 @@ router.post('/', catchAsync(async (req, res) => {
           urgency: c.urgency,
           status: c.status,
           created_at: c.createdAt,
-          similar_count: 0,
+          similar_count: c.similar_count || 1,
           officer_name: c.officer_name || undefined,
           officer_phone: c.officer_phone || undefined
         }});
@@ -92,7 +92,7 @@ router.post('/', catchAsync(async (req, res) => {
           urgency: c.urgency,
           status: c.status,
           created_at: c.createdAt,
-          similar_count: 0
+          similar_count: c.similar_count || 1
         }));
         return res.json({ success: true, data: mapped });
       }
@@ -128,7 +128,7 @@ router.post('/', catchAsync(async (req, res) => {
           urgency: c.urgency,
           status: c.status,
           created_at: c.createdAt,
-          similar_count: 0
+          similar_count: c.similar_count || 1
         }));
         return res.json({ success: true, data: mapped });
       }
@@ -248,7 +248,7 @@ router.get('/', catchAsync(async (req, res) => {
          urgency: c.urgency || 'MEDIUM',
          lat: c.lat || 0,
          lng: c.lng || 0,
-         similar_count: 0
+         similar_count: c.similar_count || 1
       }));
 
       stats = {

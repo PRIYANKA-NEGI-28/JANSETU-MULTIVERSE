@@ -56,21 +56,27 @@ export default function Home({ onNavigate, user }: HomeProps) {
   useEffect(() => {
     async function loadData() {
       try {
-        let data: Neo4jComplaint[] = [];
+        // Always load global complaints for general statistics
+        const globalData = await getAllComplaints();
+        if (globalData) {
+          setStats({
+            total: globalData.length,
+            resolved: globalData.filter(c => c.status === 'RESOLVED').length,
+            pending: globalData.filter(c => c.status === 'PENDING').length,
+            escalated: globalData.filter(c => c.status === 'ESCALATED').length,
+          });
+        }
+
+        // Only filter the recent complaints history if user is logged in
+        let historyData: Neo4jComplaint[] = [];
         if (user && user.phone) {
-          data = await getUserComplaints(user.phone);
+          historyData = await getUserComplaints(user.phone);
         } else {
-          data = await getAllComplaints();
+          historyData = globalData || [];
         }
         
-        if (data) {
-          setRecentComplaints(data.slice(0, 6));
-          setStats({
-            total: data.length,
-            resolved: data.filter(c => c.status === 'RESOLVED').length,
-            pending: data.filter(c => c.status === 'PENDING').length,
-            escalated: data.filter(c => c.status === 'ESCALATED').length,
-          });
+        if (historyData) {
+          setRecentComplaints(historyData.slice(0, 6));
         }
       } catch { /* show zeros if Neo4j unreachable on first load */ }
     }
@@ -79,15 +85,18 @@ export default function Home({ onNavigate, user }: HomeProps) {
     const unsubscribe = subscribe((msg) => {
       if (msg.type === 'new_complaint') {
         const c = msg.data;
-        // if user is logged in, only show their complaints
-        if (user && user.phone && c.citizen_phone !== user.phone) return;
         
-        setRecentComplaints(prev => [c, ...prev].slice(0, 6));
+        // Always update global stats counters
         setStats(prev => ({
           ...prev,
           total: prev.total + 1,
           pending: prev.pending + 1
         }));
+
+        // Only append to user's recent complaints if it belongs to them (or no login)
+        if (!user || !user.phone || c.citizen_phone === user.phone) {
+          setRecentComplaints(prev => [c, ...prev].slice(0, 6));
+        }
       } else if (msg.type === 'complaint_updated') {
         setRecentComplaints(prev => prev.map(c => {
           if (c.id === msg.data.id || c.complaint_number === msg.data.id) {

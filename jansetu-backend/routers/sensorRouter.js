@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { recordSensorFault, resolveSensorFault, runQuery, createComplaintNode } = require('../db/graph');
-const { saveSensorAlert, getSensorAlerts, saveComplaint } = require('../db/sqlite');
+const { saveSensorAlert, getSensorAlerts, saveComplaint, db } = require('../db/sqlite');
 const catchAsync = require('../utils/catchAsync');
 const { broadcast } = require('../ws/broadcast');
 
@@ -91,6 +91,118 @@ router.post('/', catchAsync(async (req, res) => {
       status: 'PENDING',
       createdAt: new Date().toISOString()
     };
+    
+    // Check if there is already an active (non-RESOLVED) IoT complaint for this device
+    let existingComplaintId = null;
+    let newSimilarCount = 1;
+    
+    try {
+      const checkQuery = `
+        MATCH (c:Complaint)
+        WHERE c.citizen_name = 'IoT' AND c.raw_text CONTAINS $deviceId AND c.status <> 'RESOLVED'
+        RETURN c LIMIT 1
+      `;
+      const checkResult = await runQuery(checkQuery, { deviceId: device_id });
+      if (checkResult.records.length > 0) {
+        const cNode = checkResult.records[0].get('c').properties;
+        existingComplaintId = cNode.id;
+        newSimilarCount = (cNode.similar_count || 1) + 1;
+      }
+    } catch (err) {
+      console.warn('Neo4j check existing complaint failed, checking SQLite fallback:', err.message);
+    }
+    
+    if (!existingComplaintId) {
+      try {
+        const row = db.prepare("SELECT * FROM complaints WHERE citizen_name = 'IoT' AND raw_text LIKE ? AND status <> 'RESOLVED' LIMIT 1").get(`%${device_id}%`);
+        if (row) {
+          existingComplaintId = row.id;
+          newSimilarCount = (row.similar_count || 1) + 1;
+        }
+      } catch (err) {
+        console.error('SQLite check existing complaint failed:', err.message);
+      }
+    }
+    
+    if (existingComplaintId) {
+      console.log(`Duplicate IoT fault detected for ${device_id}. Incrementing similar_count to x${newSimilarCount}.`);
+      
+      // Update in Neo4j
+      try {
+        await runQuery(`
+          MATCH (c:Complaint {id: $id})
+          SET c.similar_count = $newSimilarCount
+          RETURN c
+        `, { id: existingComplaintId, newSimilarCount });
+      } catch (err) {
+        console.warn('Failed to update similar_count in Neo4j:', err.message);
+      }
+      
+      // Update in SQLite
+      try {
+        db.prepare("UPDATE complaints SET similar_count = ? WHERE id = ?").run(newSimilarCount, existingComplaintId);
+      } catch (err) {
+        console.error('Failed to update similar_count in SQLite:', err.message);
+      }
+      
+      // Broadcast update
+      let updatedComplaint;
+      try {
+        const result = await runQuery("MATCH (c:Complaint {id: $id}) RETURN c", { id: existingComplaintId });
+        updatedComplaint = result.records[0]?.get('c').properties;
+      } catch (err) {
+        const row = db.prepare("SELECT * FROM complaints WHERE id = ?").get(existingComplaintId);
+        updatedComplaint = {
+          id: row.id,
+          complaint_number: row.complaint_number,
+          citizen_name: row.citizen_name,
+          citizen_phone: row.citizen_phone,
+          issue_type: row.issueType,
+          department: row.department,
+          area: row.area,
+          ward: row.ward,
+          raw_text: row.raw_text,
+          summary: row.summary,
+          language: row.language,
+          lat: row.lat,
+          lng: row.lng,
+          imageUrl: row.imageUrl,
+          urgency: row.urgency,
+          status: row.status,
+          created_at: row.createdAt,
+          similar_count: row.similar_count
+        };
+      }
+      
+      const { sanitizeRecordDates } = require('../db/dateSanitizer');
+      const broadcastData = sanitizeRecordDates(updatedComplaint);
+      broadcast('complaint_updated', { id: existingComplaintId, status: broadcastData.status, similar_count: broadcastData.similar_count || newSimilarCount });
+      
+      // Generate a mock sensor alert to return for the IoT Monitor log view
+      const sensorData = {
+        id: 'SENS-DUP-' + Date.now(),
+        device_id,
+        type: type || 'UNKNOWN',
+        status: 'FAULT',
+        lat: location.lat,
+        lng: location.lng,
+        ward: location.ward,
+        department: location.department,
+        description: `Automatic duplicate fault detected by ${device_id} (Count: x${newSimilarCount})`,
+        severity: 'HIGH',
+        area: location.ward,
+        createdAt: new Date().toISOString()
+      };
+      
+      saveSensorAlert(sensorData);
+      broadcast('new_sensor_alert', sensorData);
+      
+      return res.status(200).json({
+        success: true,
+        message: `Duplicate fault anomaly registered. Complaint count incremented to x${newSimilarCount}`,
+        data: sensorData
+      });
+    }
     
     try {
       const result = await recordSensorFault(device_id, type || 'UNKNOWN', location);

@@ -121,7 +121,11 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
       } else if (msg.type === 'complaint_updated') {
         setComplaints(prev => prev.map(c => {
           if (c.id === msg.data.id || c.complaint_number === msg.data.id) {
-            return { ...c, status: msg.data.status };
+            return { 
+              ...c, 
+              status: msg.data.status,
+              similar_count: msg.data.similar_count !== undefined ? msg.data.similar_count : c.similar_count
+            };
           }
           return c;
         }));
