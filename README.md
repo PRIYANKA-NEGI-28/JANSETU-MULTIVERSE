@@ -143,7 +143,7 @@ VITE_BACKEND_URL=https://jansetu-multiverse.onrender.com
 
 ## Contributors
 
-* Ritu Raj Sinha - 
-* Rishav Raj -
-* Divyansh Gupta - 
+* Ritu Raj Sinha - [riturajsinha040@gmail.com]
+* Rishav Raj - [rishavraj.rr124@gmail.com]
+* Divyansh Gupta - [divyanshvinu12@gmail.com]
 * Priyanka Negi - [priyankaviveknegi@gmail.com]
