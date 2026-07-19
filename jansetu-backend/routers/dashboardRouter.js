@@ -168,6 +168,26 @@ router.post('/', catchAsync(async (req, res) => {
       broadcast('complaint_updated', { id: params.id, status: params.status });
       return res.json({ success: true, data: { success: true } });
     }
+
+    if (action === 'runEscalationCheck') {
+      // Mock escalation check fallback
+      return res.json({ success: true, data: { escalated_count: 0 } });
+    }
+
+    if (action === 'getDepartmentStats') {
+      // Mock department stats fallback
+      const departments = [
+        { id: '1', name: 'Municipal Corporation', total_complaints: 0, resolved_complaints: 0, avg_resolution_days: 0, pending_count: 0, escalated_count: 0, trust_score: 100 },
+        { id: '2', name: 'Electrical', total_complaints: 0, resolved_complaints: 0, avg_resolution_days: 0, pending_count: 0, escalated_count: 0, trust_score: 100 },
+        { id: '3', name: 'Water', total_complaints: 0, resolved_complaints: 0, avg_resolution_days: 0, pending_count: 0, escalated_count: 0, trust_score: 100 }
+      ];
+      return res.json({ success: true, data: departments });
+    }
+
+    if (action === 'getGraphStats') {
+      // Mock graph stats fallback
+      return res.json({ success: true, data: { total: 0, clustered: 0, escalated: 0, hotspots: [] } });
+    }
     
     return res.status(400).json({ success: false, error: 'Unknown action' });
 }));
@@ -240,15 +260,18 @@ router.get('/', catchAsync(async (req, res) => {
          id: c.id,
          complaint_number: c.complaint_number || c.id.substring(0, 15),
          citizen_name: c.citizen_name || 'Anonymous',
+         citizen_phone: c.citizen_phone || '',
          issue_type: c.issueType || 'General Complaint',
          department: c.department || 'General Administration',
          area: c.area || 'Unknown Area',
          ward: c.ward || 'Unknown Ward',
+         raw_text: c.raw_text || '',
          status: c.status || 'PENDING',
          urgency: c.urgency || 'MEDIUM',
          lat: c.lat || 0,
          lng: c.lng || 0,
-         similar_count: c.similar_count || 1
+         similar_count: c.similar_count || 1,
+         created_at: c.createdAt || new Date().toISOString()
       }));
 
       stats = {
