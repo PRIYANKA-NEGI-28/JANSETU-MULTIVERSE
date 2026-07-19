@@ -9,19 +9,39 @@ const catchAsync = require('../utils/catchAsync');
 const { broadcast } = require('../ws/broadcast');
 
 // POST /api/complaint - Register a new complaint with optional image upload
+// Accepts multipart/form-data from the mobile app with these fields:
+//   name, phone, text, area, ward, city, issue_type, urgency, department,
+//   summary, voice_transcript, complaint_number, latitude, longitude,
+//   llm_validation, image_file (optional file)
 router.post('/', upload.single('image_file'), catchAsync(async (req, res) => {
-  const { issueType, urgency, citizenName, citizenPhone, rawText, language, summary, department, area, ward } = req.body;
-  // Enforce standard default safety values for lat/lng (e.g., core municipality coordinates)
-  const parsedLat = parseFloat(req.body.lat);
-  const lat = !isNaN(parsedLat) ? parsedLat : 28.6139; // New Delhi Lat fallback
-  const parsedLng = parseFloat(req.body.lng);
-  const lng = !isNaN(parsedLng) ? parsedLng : 77.2090; // New Delhi Lng fallback
+  const body = req.body;
 
-  const imageUrl = req.file ? req.file.path : (req.body.imageUrl || null);
+  // ── Map the mobile app's field names to our internal schema ──
+  const citizenName  = body.name        || body.citizenName  || 'Anonymous';
+  const citizenPhone = body.phone       || body.citizenPhone || '';
+  const rawText      = body.text        || body.rawText      || body.voice_transcript || '';
+  const language     = body.language    || 'en';
+  const summary      = body.summary    || '';
+  const department   = body.department  || 'General Administration';
+  const area         = body.area        || 'Unknown Area';
+  const ward         = body.ward        || 'Unknown Ward';
+  const issueType    = body.issue_type  || body.issueType || 'General';
+  const urgency      = body.urgency     || 'MEDIUM';
+
+  // lat/lng: mobile sends "latitude" / "longitude" as strings
+  const parsedLat = parseFloat(body.latitude || body.lat);
+  const lat = !isNaN(parsedLat) ? parsedLat : 28.6139;
+  const parsedLng = parseFloat(body.longitude || body.lng);
+  const lng = !isNaN(parsedLng) ? parsedLng : 77.2090;
+
+  // Use the complaint_number from the mobile app if provided, else generate one
+  const complaint_number = body.complaint_number
+    || `JS-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(Math.random() * 9000) + 1000}`;
+
+  const imageUrl = req.file ? req.file.path : (body.imageUrl || null);
   const id = crypto.randomUUID();
-  const complaint_number = `JS-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(Math.random() * 9000) + 1000}`;
 
-  // Create complaint node in Neo4j using the new graph transaction
+  // Create complaint node in Neo4j + SQLite
   const result = await createComplaintNode({
     id,
     complaint_number,
@@ -33,15 +53,37 @@ router.post('/', upload.single('image_file'), catchAsync(async (req, res) => {
     department,
     area,
     ward,
-    issueType: issueType || 'General',
+    issueType,
     lat,
     lng,
     imageUrl,
-    urgency: urgency || 'MEDIUM',
+    urgency,
     status: 'PENDING'
   });
 
-  const complaintData = result.records[0].get('c').properties;
+  const rawProps = result.records[0].get('c').properties;
+
+  // Normalize the broadcast payload so every WS consumer gets a consistent shape
+  const complaintData = {
+    id: rawProps.id || id,
+    complaint_number: rawProps.complaint_number || complaint_number,
+    citizen_name: rawProps.citizen_name || citizenName,
+    citizen_phone: rawProps.citizenPhone || citizenPhone,
+    issue_type: rawProps.issue_type || rawProps.issueType || issueType,
+    department: rawProps.department || department,
+    area: rawProps.area || area,
+    ward: rawProps.ward || ward,
+    raw_text: rawProps.raw_text || rawText,
+    summary: rawProps.summary || summary,
+    language: rawProps.language || language,
+    lat: parseFloat(rawProps.lat) || lat,
+    lng: parseFloat(rawProps.lng) || lng,
+    imageUrl: rawProps.imageUrl || imageUrl,
+    urgency: rawProps.urgency || urgency,
+    status: rawProps.status || 'PENDING',
+    created_at: rawProps.created_at || rawProps.createdAt || new Date().toISOString(),
+    similar_count: rawProps.similar_count || 1
+  };
 
   // Broadcast to all WebSocket clients for real-time update
   broadcast('new_complaint', complaintData);

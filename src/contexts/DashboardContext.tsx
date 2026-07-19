@@ -117,6 +117,7 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
       } else if (msg.type === 'new_sensor_alert') {
         setSensorAlerts(prev => [msg.data, ...prev]);
       } else if (msg.type === 'sensor_resolved') {
+        // Remove resolved sensor alerts for this device
         setSensorAlerts(prev => prev.filter(s => s.device_id !== msg.data.device_id));
       } else if (msg.type === 'complaint_updated') {
         setComplaints(prev => prev.map(c => {
