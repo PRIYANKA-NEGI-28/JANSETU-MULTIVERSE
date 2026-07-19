@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Brain, MapPin, AlertTriangle, CheckCircle, ArrowRight, Loader,
-  FileText, Copy, Mic, MicOff, Volume2, Download
+  FileText, Copy, Mic, MicOff, Volume2, Download, ChevronDown
 } from 'lucide-react';
 import { analyzeComplaint } from '../lib/aiAnalyzer';
+import { LOCATIONS } from '../lib/locations';
 import type { Page } from '../types';
 import type { AuthUser } from '../lib/auth';
 import { useLang } from '../lib/langContext';
+import { useToast } from '../contexts/ToastContext';
 import ScrollReveal from '../components/ScrollReveal';
 
 interface SubmitComplaintProps {
@@ -65,11 +67,15 @@ interface SpeechRecognitionErrorEvent extends Event {
 }
 
 export default function SubmitComplaint({ onNavigate, user, location, onRequestLocation }: SubmitComplaintProps) {
-  const { T } = useLang();
+  const { T, lang } = useLang();
+  const { toast } = useToast();
   const [form, setForm] = useState({
     name: user?.name || '',
     phone: '',
     text: '',
+    city: 'Delhi',
+    area: '',
+    ward: '',
   });
   const [analysis, setAnalysis] = useState<ReturnType<typeof analyzeComplaint> | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -268,7 +274,7 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
   }
 
   async function handleSubmit() {
-    if (!form.name || !form.text) {
+    if (!form.name || !form.text || !form.area) {
       setError(T.submit_error_fields);
       setShouldShake(true);
       setTimeout(() => setShouldShake(false), 500);
@@ -299,6 +305,8 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
       formData.append('department', analysis.department);
       formData.append('lat', String(location.lat ?? 28.6139));
       formData.append('lng', String(location.lng ?? 77.2090));
+      if (form.area) formData.append('area', form.area);
+      if (form.ward) formData.append('ward', form.ward);
       if (user?.id) formData.append('userId', user.id);
       
       // We will grab the file from the camera input below (if the user uploaded one here, although in this component, photo wasn't previously in form state. I'll add a file input state and append it.)
@@ -320,6 +328,7 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
       setSubmitted(complaintNumber);
     } catch {
       setError(T.submit_error_submit);
+      toast('Unable to sync with server. Retrying...', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -371,7 +380,7 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
                 Track Your Complaint <ArrowRight size={16} />
               </button>
               <button
-                onClick={() => { setSubmitted(null); setForm({ name: user?.name || '', phone: '', text: '' }); setAnalysis(null); }}
+                onClick={() => { setSubmitted(null); setForm({ name: user?.name || '', phone: '', text: '', city: 'Delhi', area: '', ward: '' }); setAnalysis(null); }}
                 className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all"
               >
                 {T.submit_file_another}
@@ -614,7 +623,7 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
                 <div className="flex items-center gap-2 flex-wrap mb-4">
                   <AlertTriangle size={13} className="text-red-500" />
                   <span className="text-xs text-gray-500 font-medium">{T.submit_risk_factors}</span>
-                  {analysis.risk_tags.map(tag => (
+                  {(analysis.risk_tags || [])?.map(tag => (
                     <span key={tag} className="text-xs px-2 py-0.5 bg-red-50 text-red-600 rounded-full font-medium">{tag}</span>
                   ))}
                 </div>
@@ -665,6 +674,74 @@ ${form.phone ? 'संपर्क: ' + form.phone : ''}
             </div>
             </ScrollReveal>
           )}
+
+          {/* Location Details */}
+          <ScrollReveal direction="up" delay={300}>
+            <div className={`bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-md transition-shadow duration-300 ${shouldShake ? 'animate-shake' : ''}`}>
+              <h2 className="font-bold text-gray-900 mb-5 text-lg flex items-center gap-2">
+                <span className="w-7 h-7 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center font-bold">3</span>
+                Location Details
+              </h2>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">City <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-2 gap-3">
+                  {['Delhi', 'Ghaziabad'].map((cityOption) => (
+                    <button
+                      key={cityOption}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, city: cityOption, area: '', ward: '' }))}
+                      className={`py-3 rounded-xl border font-semibold text-sm transition-all ${
+                        form.city === cityOption
+                          ? 'border-orange-500 bg-orange-50 text-orange-700'
+                          : 'border-gray-200 text-gray-600 hover:border-orange-300 hover:bg-orange-50'
+                      }`}
+                    >
+                      {cityOption}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="mb-4 relative">
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Area / Locality <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <select
+                    value={form.area}
+                    onChange={(e) => {
+                      const selectedArea = e.target.value;
+                      const locationMatch = LOCATIONS.find(loc => loc.area === selectedArea && loc.city === form.city);
+                      setForm(f => ({
+                        ...f,
+                        area: selectedArea,
+                        ward: locationMatch ? locationMatch.ward : ''
+                      }));
+                    }}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-transparent transition-all input-premium appearance-none bg-white cursor-pointer pr-10"
+                  >
+                    <option value="">Select area in {form.city}</option>
+                    {LOCATIONS.filter(loc => loc.city === form.city).map(loc => (
+                      <option key={loc.area} value={loc.area}>{loc.area}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                    <ChevronDown size={16} />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Ward</label>
+                <input
+                  type="text"
+                  readOnly
+                  placeholder="Auto-filled from area"
+                  value={form.ward}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm bg-gray-50 text-gray-500 cursor-not-allowed transition-all input-premium"
+                />
+              </div>
+            </div>
+          </ScrollReveal>
 
           {error && (
             <div className="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm">

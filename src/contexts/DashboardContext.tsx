@@ -39,7 +39,11 @@ export const useDashboard = () => {
   return context;
 };
 
+import { useToast } from './ToastContext';
+import { useWebSocket } from '../hooks/useWebSocket';
+
 export const DashboardProvider = ({ children }: { children: ReactNode }) => {
+  const { toast } = useToast();
   const [complaints, setComplaints] = useState<Neo4jComplaint[]>([]);
   const [sensorAlerts, setSensorAlerts] = useState<SensorAlert[]>([]);
   const [globalMetrics, setGlobalMetrics] = useState<GlobalMetrics>({
@@ -78,24 +82,67 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
           clustersDetected: criticalZonesCount,
         });
         setSensorAlerts(sensorData.alerts || []);
-        setNetworkError(false);
+        if (networkError) setNetworkError(false);
       } else {
-        setNetworkError(true);
+        if (!networkError) {
+          setNetworkError(true);
+          toast("Unable to sync with server. Retrying...", "error");
+        }
       }
     } catch (error) {
       console.error("Dashboard fetch error:", error);
-      setNetworkError(true);
+      if (!networkError) {
+        setNetworkError(true);
+        toast("Unable to sync with server. Retrying...", "error");
+      }
     }
   };
+
+  const { subscribe } = useWebSocket();
 
   useEffect(() => {
     fetchData(); // Initial fetch
     
-    // High-frequency long-polling
-    const interval = setInterval(fetchData, 5000); 
+    // Listen for WebSocket pushes for instant updates
+    const unsubscribe = subscribe((msg) => {
+      if (msg.type === 'new_complaint') {
+        setComplaints(prev => [msg.data, ...prev]);
+        setGlobalMetrics(prev => ({
+          ...prev,
+          totalComplaints: prev.totalComplaints + 1,
+          pending: prev.pending + 1
+        }));
+      } else if (msg.type === 'new_sensor_alert') {
+        setSensorAlerts(prev => [msg.data, ...prev]);
+      } else if (msg.type === 'sensor_resolved') {
+        setSensorAlerts(prev => prev.filter(s => s.device_id !== msg.data.device_id));
+      } else if (msg.type === 'complaint_updated') {
+        setComplaints(prev => prev.map(c => {
+          if (c.id === msg.data.id || c.complaint_number === msg.data.id) {
+            return { ...c, status: msg.data.status };
+          }
+          return c;
+        }));
+        
+        // Update metrics based on status change
+        if (msg.data.status === 'RESOLVED') {
+          setGlobalMetrics(prev => ({
+            ...prev,
+            resolved: prev.resolved + 1,
+            pending: Math.max(0, prev.pending - 1)
+          }));
+        } else if (msg.data.status === 'ESCALATED') {
+          setGlobalMetrics(prev => ({
+            ...prev,
+            escalated: prev.escalated + 1,
+            pending: Math.max(0, prev.pending - 1)
+          }));
+        }
+      }
+    });
     
-    return () => clearInterval(interval);
-  }, []);
+    return () => unsubscribe();
+  }, [subscribe]);
 
   return (
     <DashboardContext.Provider value={{

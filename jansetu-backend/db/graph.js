@@ -1,6 +1,7 @@
 const neo4j = require('neo4j-driver');
 require('dotenv').config();
 
+const { sanitizeRecordDates } = require('./dateSanitizer');
 const uri = process.env.NEO4J_URI || 'bolt://localhost:7687';
 const user = process.env.NEO4J_USERNAME || 'neo4j';
 const password = process.env.NEO4J_PASSWORD || 'password';
@@ -15,7 +16,7 @@ async function verifyConnection() {
   const session = driver.session();
   try {
     // Run a shallow test query to guarantee the database engine is accessible
-    await session.run('RETURN 1 AS result');
+    await session.run('RETURN 1 AS result', {}, { timeout: 3000 });
     console.log('Successfully connected to Neo4j database (Test query passed).');
     return true;
   } catch (error) {
@@ -45,7 +46,7 @@ function createMockResult(data, alias) {
 async function runQuery(query, params = {}) {
   const session = driver.session();
   try {
-    const result = await session.run(query, params);
+    const result = await session.run(query, params, { timeout: 3000 });
     return result;
   } catch (error) {
     // If the query fails, we return a mock result to allow the server to continue

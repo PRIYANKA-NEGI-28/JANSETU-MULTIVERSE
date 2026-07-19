@@ -13,6 +13,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import HazardMap from './pages/HazardMap';
 import RTIDrafter from './pages/RTIDrafter';
 import IoTDashboard from './pages/IoTDashboard';
+
 import type { Page } from './types';
 import { DashboardProvider } from './contexts/DashboardContext';
 import TricolorWaves from './components/TricolorWaves';
@@ -65,6 +66,7 @@ function AuthenticatedApp({
           return <Home onNavigate={navigate} user={user} />;
         }
         return <IoTDashboard onNavigate={navigate} />;
+
       default: return <Home onNavigate={navigate} user={user} />;
     }
   }

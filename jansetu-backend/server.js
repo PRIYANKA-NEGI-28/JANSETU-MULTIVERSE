@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const http = require('http');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 console.log('Environment variables loaded:');
 console.log('NEO4J_URI:', process.env.NEO4J_URI);
@@ -9,12 +10,15 @@ console.log('NEO4J_PASSWORD:', process.env.NEO4J_PASSWORD ? 'set' : 'not set');
 
 const { verifyConnection } = require('./db/graph');
 const { initSQLite } = require('./db/sqlite');
+const { sanitizeRecordDates } = require('./db/dateSanitizer');
+const { initWebSocket } = require('./ws/broadcast');
 
 const complaintRouter = require('./routers/complaintRouter');
 const sensorRouter = require('./routers/sensorRouter');
 const dashboardRouter = require('./routers/dashboardRouter');
 const drafterRouter = require('./routers/drafterRouter');
 const adminRouter = require('./routers/adminRouter');
+const grievanceRouter = require('./routers/grievanceRouter');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,12 +28,28 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Request Logging and Sanitization Middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  
+  // Override res.json to automatically sanitize any Neo4j objects before sending to frontend
+  const originalJson = res.json;
+  res.json = function(data) {
+    const sanitizedData = sanitizeRecordDates(data);
+    return originalJson.call(this, sanitizedData);
+  };
+  
+  next();
+});
+
 // Routers
 app.use('/api/complaint', complaintRouter);
-app.use('/api/sensor', sensorRouter);
+// Parse ALL payload types as JSON for the sensor endpoint since IoT devices often send raw text without correct headers
+app.use('/api/sensor', express.json({ type: '*/*' }), sensorRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/drafter', drafterRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/grievance', grievanceRouter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -56,9 +76,14 @@ async function startServer() {
   // RUST-PROOF NEO4J INTEGRATION: Test driver connection before starting the server
   await verifyConnection();
 
+  // Create HTTP server and attach WebSocket to the same port
+  const server = http.createServer(app);
+  initWebSocket(server);
+
   // Listen on '0.0.0.0' to permit external physical edge hardware devices on the local network
-  app.listen(PORT, '0.0.0.0', () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`JanSetu Multiverse backend engine listening at http://0.0.0.0:${PORT}`);
+    console.log(`WebSocket server available at ws://0.0.0.0:${PORT}`);
   });
 }
 
@@ -76,3 +101,4 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Start the server
 startServer();
+

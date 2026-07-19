@@ -87,122 +87,15 @@ const INFO_CATEGORIES = [
 
 const PAYMENT_MODES = ['Indian Postal Order (IPO)', 'DD / Banker Cheque', 'Court Fee Stamp', 'Treasury Challan', 'Online Payment'];
 
-// Generate legally formatted RTI text from form data
-function generateRTI(form: RTIForm): string {
-  const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
-  const refNo = `RTI/${new Date().getFullYear()}/${String(Math.floor(Math.random() * 90000) + 10000)}`;
 
-  // Convert natural query to specific legal requests
-  const queryLines = parseQueryToRequests(form.naturalQuery, form.infoCategory, form.timePeriodFrom, form.timePeriodTo, form.specificDocuments);
-
-  return `To,
-The Public Information Officer (PIO),
-${form.authorityName}${form.department ? ',\n' + form.department : ''},
-${form.pioConcern || form.city}.
-
-Date: ${today}
-Reference: ${refNo}
-
-Subject: Application under Section 6(1) of the Right to Information Act, 2005
-
-Respected Sir/Madam,
-
-I, ${form.applicantName}, Son/Daughter/Wife of ${form.fatherName || '____________________'}, residing at ${form.address}, ${form.city} – ${form.pincode || '______'}, ${form.state}, do hereby request you to furnish the following information under the Right to Information Act, 2005.
-
-INFORMATION SOUGHT:
-${queryLines}
-${form.timePeriodFrom && form.timePeriodTo ? `\nTIME PERIOD: The above information may pertain to the period from ${form.timePeriodFrom} to ${form.timePeriodTo}.` : ''}
-${form.urgencyReason ? `\nURGENT MATTER: ${form.urgencyReason}` : ''}
-
-I request you to provide the above information at the earliest. In case the requested information is not available with your department, I request you to forward this application to the relevant PIO under Section 6(3) of the RTI Act, 2005.
-
-${form.isBPL
-  ? `I am a Below Poverty Line (BPL) citizen. My BPL Card Number is ${form.bplCardNumber || '____________________'}. Hence, I am exempted from paying the application fee as per Section 7(5) of the RTI Act, 2005.`
-  : `I am enclosing the prescribed application fee of Rs. 10/- by way of ${form.paymentMode}.`
-}
-
-I request that the information be provided within 30 days from the date of receipt of this application as required under Section 7(1) of the RTI Act, 2005. In case the information sought concerns the life or liberty of a person, I request the same to be provided within 48 hours.
-
-If you are unable to provide the information, please communicate the grounds for refusal and the period within which I may appeal against the refusal, as required under Section 7(8) of the RTI Act, 2005.
-
-Thanking you,
-
-Yours faithfully,
-
-_______________________
-${form.applicantName}
-${form.address},
-${form.city} – ${form.pincode || '______'}, ${form.state}
-Phone: ${form.phone || '____________________'}
-${form.email ? 'Email: ' + form.email : ''}
-
-Date: ${today}
-Place: ${form.city}
-
-Enclosures:
-1. Proof of fee payment${form.isBPL ? ' (BPL Certificate copy)' : ''}
-2. Identity proof (photocopy)`;
-}
-
-function parseQueryToRequests(query: string, category: string, from: string, to: string, docs: string): string {
-  const lines: string[] = [];
-  let idx = 1;
-
-  const lower = query.toLowerCase();
-
-  if (category === 'documents' || lower.includes('copy') || lower.includes('document') || lower.includes('record')) {
-    lines.push(`${idx++}. Certified copies of all records, files, noting, correspondence and documents related to: "${query}".`);
-  }
-  if (category === 'status' || lower.includes('status') || lower.includes('application') || lower.includes('pending')) {
-    lines.push(`${idx++}. Current status of the matter/application/complaint as described: "${query.slice(0, 80)}${query.length > 80 ? '...' : ''}".`);
-    lines.push(`${idx++}. Names and designations of the officials responsible for processing the matter.`);
-  }
-  if (category === 'expenditure' || lower.includes('money') || lower.includes('amount') || lower.includes('fund') || lower.includes('budget') || lower.includes('spend')) {
-    lines.push(`${idx++}. Complete details of funds allocated, disbursed and utilized in connection with: "${query.slice(0, 80)}".`);
-    lines.push(`${idx++}. Audited accounts and utilization certificates, if any.`);
-  }
-  if (category === 'complaints' || lower.includes('complaint') || lower.includes('grievance')) {
-    lines.push(`${idx++}. Copies of all complaints/grievances received regarding the subject matter.`);
-    lines.push(`${idx++}. Action taken reports on complaints received during the said period.`);
-  }
-  if (category === 'tenders' || lower.includes('tender') || lower.includes('contract') || lower.includes('work order')) {
-    lines.push(`${idx++}. Details of all tenders issued, bids received, and work orders awarded in the subject matter.`);
-    lines.push(`${idx++}. Name and details of the successful bidder(s) and the award amount.`);
-  }
-  if (category === 'beneficiaries' || lower.includes('list') || lower.includes('beneficiar')) {
-    lines.push(`${idx++}. Complete list of beneficiaries/recipients of the scheme/program as described.`);
-    lines.push(`${idx++}. Criteria applied for selection of beneficiaries.`);
-  }
-  if (category === 'policy' || lower.includes('rule') || lower.includes('policy') || lower.includes('guideline')) {
-    lines.push(`${idx++}. Copies of all relevant rules, regulations, guidelines, circulars and policy documents.`);
-  }
-
-  // Always include a general catch-all if nothing specific matched
-  if (lines.length === 0) {
-    lines.push(`${idx++}. All information, records, files, noting, correspondence and documents related to: "${query}".`);
-    lines.push(`${idx++}. Names and designations of public servants associated with the matter.`);
-    lines.push(`${idx++}. Action taken/proposed on the subject matter.`);
-  }
-
-  // Additional specific documents
-  if (docs.trim()) {
-    docs.split('\n').filter(d => d.trim()).forEach(d => {
-      lines.push(`${idx++}. ${d.trim()}`);
-    });
-  }
-
-  // Date-range request
-  if (from && to) {
-    lines.push(`${idx++}. Any other related document(s) for the period from ${from} to ${to}.`);
-  }
-
-  return lines.join('\n');
-}
 
 const STEP_LABELS = ['Authority Type', 'Applicant Details', 'Public Authority', 'Information Required', 'Review & Generate'];
 
+import { useToast } from '../contexts/ToastContext';
+
 export default function RTIDrafter({ onNavigate }: RTIDrafterProps) {
   const { T } = useLang();
+  const { toast } = useToast();
   const [step, setStep] = useState<Step>(1);
   const [form, setForm] = useState<RTIForm>({
     applicantName: '', fatherName: '', address: '', city: '', state: '', pincode: '', phone: '', email: '',
@@ -234,13 +127,16 @@ export default function RTIDrafter({ onNavigate }: RTIDrafterProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
       });
-      if (!res.ok) throw new Error('Failed to generate draft');
+      if (!res.ok) {
+        toast('Unable to reach AI server. Using local template fallback.', 'error');
+        throw new Error('Failed to generate draft');
+      }
       const data = await res.json();
-      setGeneratedText(data.draftText || generateRTI(form)); // fallback just in case
+      setGeneratedText(data.draftText || 'Error: No draft returned from server.');
     } catch (err) {
       console.error(err);
-      // Fallback to client-side generation if server fails for demo
-      setGeneratedText(generateRTI(form));
+      toast('Unable to reach AI server or generate draft. Please check server logs.', 'error');
+      setGeneratedText('Failed to generate RTI draft. Please check server logs.');
     } finally {
       setGenerating(false);
     }

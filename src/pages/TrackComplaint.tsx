@@ -22,8 +22,10 @@ const STATUS_CONFIG = {
   PENDING: { labelKey: 'status_pending' as const, color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200', dot: 'bg-yellow-500', icon: <Clock size={16} /> },
   ASSIGNED: { labelKey: 'status_assigned' as const, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200', dot: 'bg-blue-500', icon: <UserCheck size={16} /> },
   IN_PROGRESS: { labelKey: 'status_in_progress' as const, color: 'text-teal-600', bg: 'bg-teal-50 border-teal-200', dot: 'bg-teal-500', icon: <RefreshCw size={16} /> },
-  RESOLVED: { labelKey: 'status_resolved' as const, color: 'text-green-600', bg: 'bg-green-50 border-green-200', dot: 'bg-green-500', icon: <CheckCircle size={16} /> },
-  ESCALATED: { labelKey: 'status_escalated' as const, color: 'text-red-600', bg: 'bg-red-50 border-red-200', dot: 'bg-red-500', icon: <AlertTriangle size={16} /> },
+  RESOLVED: { labelKey: 'status_resolved' as const, bg: 'bg-green-100', color: 'text-green-700', icon: <CheckCircle size={16} /> },
+  ESCALATED: { labelKey: 'status_escalated' as const, bg: 'bg-red-100', color: 'text-red-700', icon: <AlertTriangle size={16} /> },
+  FAULT: { labelKey: 'status_escalated' as const, bg: 'bg-orange-100', color: 'text-orange-700', icon: <AlertTriangle size={16} /> },
+  UNKNOWN: { labelKey: 'status_pending' as const, bg: 'bg-gray-100', color: 'text-gray-700', icon: <Clock size={16} /> },
 };
 
 const URGENCY_COLORS = {
@@ -150,9 +152,9 @@ export default function TrackComplaint({ onNavigate, user }: TrackComplaintProps
                     <h2 className="text-2xl font-bold text-gray-900">{complaint.issue_type}</h2>
                     <p className="text-gray-500 mt-1 text-sm">{complaint.summary}</p>
                   </div>
-                  <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold ${STATUS_CONFIG[complaint.status].bg} ${STATUS_CONFIG[complaint.status].color}`}>
-                    {STATUS_CONFIG[complaint.status].icon}
-                    {T[STATUS_CONFIG[complaint.status].labelKey]}
+                  <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold ${(STATUS_CONFIG[complaint.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN).bg} ${(STATUS_CONFIG[complaint.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN).color}`}>
+                    {(STATUS_CONFIG[complaint.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN).icon}
+                    {T[(STATUS_CONFIG[complaint.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN).labelKey]}
                   </div>
                 </div>
 
@@ -270,7 +272,7 @@ export default function TrackComplaint({ onNavigate, user }: TrackComplaintProps
                     <h3 className="font-bold text-gray-900 text-lg">{T.track_similar_title}</h3>
                   </div>
                   <div className="space-y-3">
-                    {complaint.similar_complaints.map((s: Neo4jComplaint, i) => (
+                    {(complaint?.similar_complaints || [])?.map((s: Neo4jComplaint, i) => (
                       <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100/70 transition-colors duration-200">
                         <div>
                           <p className="font-medium text-gray-900 text-sm">{s.issue_type} — {s.area}</p>
@@ -320,7 +322,7 @@ export default function TrackComplaint({ onNavigate, user }: TrackComplaintProps
               </ScrollReveal>
             ) : (
               <div className="space-y-4">
-                {myHistory.map((c, i) => (
+                {(myHistory || [])?.map((c, i) => (
                   <ScrollReveal key={c.id} direction="up" delay={i * 80}>
                     <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
                       <div className="flex items-center justify-between mb-3">
@@ -336,9 +338,9 @@ export default function TrackComplaint({ onNavigate, user }: TrackComplaintProps
                           </button>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${URGENCY_COLORS[c.urgency]}`}>{c.urgency}</span>
                         </div>
-                        <div className={`flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-full ${STATUS_CONFIG[c.status]?.bg} ${STATUS_CONFIG[c.status]?.color}`}>
-                          {STATUS_CONFIG[c.status]?.icon}
-                          {T[STATUS_CONFIG[c.status]?.labelKey]}
+                        <div className={`flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-full ${(STATUS_CONFIG[c.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN).bg} ${(STATUS_CONFIG[c.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN).color}`}>
+                          {(STATUS_CONFIG[c.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN).icon}
+                          {T[(STATUS_CONFIG[c.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.UNKNOWN).labelKey]}
                         </div>
                       </div>
                       <h3 className="font-bold text-gray-900 group-hover:text-orange-600 transition-colors duration-200">{c.issue_type}</h3>

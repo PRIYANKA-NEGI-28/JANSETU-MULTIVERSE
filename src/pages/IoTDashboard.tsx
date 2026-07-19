@@ -21,29 +21,54 @@ interface SensorData {
   createdAt: string;
 }
 
+import { useToast } from '../contexts/ToastContext';
+import { useWebSocket } from '../hooks/useWebSocket';
+
 export default function IoTDashboard({ onNavigate }: IoTDashboardProps) {
   const [sensors, setSensors] = useState<SensorData[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchSensors = async () => {
-      try {
-        const res = await fetch('/api/sensor');
-        if (res.ok) {
-          const data = await res.json();
-          setSensors(data.alerts || []);
+    const { subscribe } = useWebSocket();
+
+    useEffect(() => {
+      let isErrorToastShown = false;
+      const fetchSensors = async () => {
+        try {
+          const res = await fetch('/api/sensor');
+          if (res.ok) {
+            const data = await res.json();
+            setSensors(data.alerts || []);
+            isErrorToastShown = false;
+          } else {
+            if (!isErrorToastShown) {
+              toast('Unable to sync with server. Retrying...', 'error');
+              isErrorToastShown = true;
+            }
+          }
+        } catch (e) {
+          console.error('Failed to fetch sensor data', e);
+          if (!isErrorToastShown) {
+            toast('Unable to sync with server. Retrying...', 'error');
+            isErrorToastShown = true;
+          }
+        } finally {
+          setLoading(false);
         }
-      } catch (e) {
-        console.error('Failed to fetch sensor data', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchSensors();
-    const interval = setInterval(fetchSensors, 5000);
-    return () => clearInterval(interval);
-  }, []);
+      };
+      
+      fetchSensors();
+      
+      const unsubscribe = subscribe((msg) => {
+        if (msg.type === 'new_sensor_alert') {
+          setSensors(prev => [msg.data, ...prev]);
+        } else if (msg.type === 'sensor_resolved') {
+          setSensors(prev => prev.filter(s => s.device_id !== msg.data.device_id));
+        }
+      });
+      
+      return () => unsubscribe();
+    }, [subscribe, toast]);
 
   const totalFaults = sensors.filter(s => s.status === 'FAULT').length;
   

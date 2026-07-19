@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { runQuery } = require('../db/graph');
 const { getRtiDrafts, getAllComplaints, getComplaintsByPhone, getComplaintByNumber } = require('../db/sqlite');
+const catchAsync = require('../utils/catchAsync');
+const { broadcast } = require('../ws/broadcast');
 
 // POST /api/dashboard - RPC endpoint for Neo4j proxy operations
-router.post('/', async (req, res) => {
-  try {
+router.post('/', catchAsync(async (req, res) => {
     const { action, params } = req.body;
     
     if (action === 'getComplaintByNumber') {
@@ -59,6 +60,42 @@ router.post('/', async (req, res) => {
       }
     }
     
+    if (action === 'getAllComplaints') {
+      try {
+        const query = `
+          MATCH (c:Complaint)
+          RETURN c ORDER BY c.created_at DESC
+        `;
+        const result = await runQuery(query);
+        const complaints = result.records.map(r => r.get('c').properties);
+        return res.json({ success: true, data: complaints });
+      } catch (err) {
+        console.log('Neo4j getAllComplaints failed, using SQLite fallback');
+        const complaints = getAllComplaints();
+        const mapped = complaints.map(c => ({
+          id: c.id,
+          complaint_number: c.complaint_number,
+          citizen_name: c.citizen_name,
+          citizen_phone: c.citizen_phone,
+          issue_type: c.issueType,
+          department: c.department,
+          area: c.area,
+          ward: c.ward,
+          raw_text: c.raw_text,
+          summary: c.summary,
+          language: c.language,
+          lat: c.lat,
+          lng: c.lng,
+          imageUrl: c.imageUrl,
+          urgency: c.urgency,
+          status: c.status,
+          created_at: c.createdAt,
+          similar_count: 0
+        }));
+        return res.json({ success: true, data: mapped });
+      }
+    }
+
     if (action === 'getUserComplaints') {
       try {
         const query = `
@@ -94,17 +131,47 @@ router.post('/', async (req, res) => {
         return res.json({ success: true, data: mapped });
       }
     }
-    
-    return res.status(400).json({ error: 'Unknown action' });
-  } catch (error) {
-    console.error('RPC Error:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
 
-// GET /api/dashboard - Fetch data for the dashboard
-router.get('/', async (req, res) => {
-  try {
+    const { seedOfficers, getAllOfficers, getOfficersByDepartment, assignOfficer, escalateComplaint, updateComplaintStatus } = require('../db/sqlite');
+
+    if (action === 'seedOfficers') {
+      const count = seedOfficers();
+      return res.json({ success: true, data: { seeded: count } });
+    }
+
+    if (action === 'getAllOfficers') {
+      const officers = getAllOfficers();
+      return res.json({ success: true, data: officers });
+    }
+
+    if (action === 'getOfficersByDepartment') {
+      const officers = getOfficersByDepartment(params.department);
+      return res.json({ success: true, data: officers });
+    }
+
+    if (action === 'assignOfficer') {
+      assignOfficer(params.complaintId, params.officerId);
+      broadcast('complaint_updated', { id: params.complaintId, status: 'ASSIGNED', officerId: params.officerId });
+      return res.json({ success: true, data: { success: true } });
+    }
+
+    if (action === 'escalateComplaint') {
+      escalateComplaint(params.complaintId, params.escalationOfficerId);
+      broadcast('complaint_updated', { id: params.complaintId, status: 'ESCALATED', officerId: params.escalationOfficerId });
+      return res.json({ success: true, data: { success: true } });
+    }
+
+    if (action === 'updateStatus') {
+      updateComplaintStatus(params.id, params.status);
+      broadcast('complaint_updated', { id: params.id, status: params.status });
+      return res.json({ success: true, data: { success: true } });
+    }
+    
+    return res.status(400).json({ success: false, error: 'Unknown action' });
+}));
+
+// GET /api/dashboard - Dashboard initialization payload
+router.get('/', catchAsync(async (req, res) => {
     // 4. Fetch RTI drafts from SQLite (this should work locally)
     const rtiDrafts = getRtiDrafts(50); // adjust limit as needed
 
@@ -200,15 +267,10 @@ router.get('/', async (req, res) => {
         rtiDrafts
       }
     });
-  } catch (error) {
-    console.error('Error fetching dashboard data:', error);
-    res.status(500).json({ success: false, error: 'Internal Server Error' });
-  }
-});
+}));
 
-// PATCH /api/complaint/:id - Update complaint/anomaly structural property node values
-router.patch('/complaint/:id', async (req, res) => {
-  try {
+// PATCH /api/dashboard/complaint/:id
+router.patch('/complaint/:id', catchAsync(async (req, res) => {
     const { id } = req.params;
     const { status, threat_indicator } = req.body;
 
@@ -246,10 +308,6 @@ router.patch('/complaint/:id', async (req, res) => {
       message: 'Structural properties updated',
       data: result.records[0].get('n').properties
     });
-  } catch (error) {
-    console.error('Error updating properties:', error);
-    res.status(500).json({ success: false, error: 'Internal Server Error' });
-  }
-});
+}));
 
 module.exports = router;
