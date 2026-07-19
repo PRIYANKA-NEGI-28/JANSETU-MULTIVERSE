@@ -16,7 +16,7 @@ async function verifyConnection() {
   const session = driver.session();
   try {
     // Run a shallow test query to guarantee the database engine is accessible
-    await session.run('RETURN 1 AS result', {}, { timeout: 3000 });
+    await session.run('RETURN 1 AS result', {}, { timeout: 20000 });
     console.log('Successfully connected to Neo4j database (Test query passed).');
     return true;
   } catch (error) {
@@ -46,7 +46,7 @@ function createMockResult(data, alias) {
 async function runQuery(query, params = {}) {
   const session = driver.session();
   try {
-    const result = await session.run(query, params, { timeout: 3000 });
+    const result = await session.run(query, params, { timeout: 20000 });
     return result;
   } catch (error) {
     // If the query fails, we return a mock result to allow the server to continue
