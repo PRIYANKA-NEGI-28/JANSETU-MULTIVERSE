@@ -162,11 +162,7 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
     if (!assignModal) return;
     setAssigning(true);
     try {
-      const res = await assignOfficerToComplaint(assignModal.complaintId, officerId);
-      if (!res.ok) {
-        toast('Unable to sync assignment with server. Retrying...', 'error');
-        throw new Error('Assignment failed');
-      }
+      await assignOfficerToComplaint(assignModal.complaintId, officerId);
       setLocalComplaints(prev => prev?.map(c => 
         c.id === assignModal.complaintId ? { ...c, status: 'ASSIGNED' as const } : c
       ) || []);
@@ -186,11 +182,7 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
     if (!escalateModal) return;
     setAssigning(true);
     try {
-      const res = await escalateComplaintToOfficer(escalateModal.complaintId, officerId);
-      if (!res.ok) {
-        toast('Unable to sync escalation with server. Retrying...', 'error');
-        throw new Error('Escalation failed');
-      }
+      await escalateComplaintToOfficer(escalateModal.complaintId, officerId);
       setLocalComplaints(prev => prev?.map(c => 
         c.id === escalateModal.complaintId ? { ...c, status: 'ESCALATED' as const } : c
       ) || []);
