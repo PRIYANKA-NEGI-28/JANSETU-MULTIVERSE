@@ -166,8 +166,8 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
     }))
   ];
   
-  // Use dynamicReports instead of SEED_REPORTS if they exist
-  const initialReports = dynamicReports.length > 0 ? dynamicReports : SEED_REPORTS;
+  // Use dynamicReports only to ensure data comes directly from the database
+  const initialReports = dynamicReports;
 
   const [reports, setReports] = useState<HazardReport[]>(initialReports);
   const [clusters, setClusters] = useState<Cluster[]>(() => buildClusters(initialReports));
