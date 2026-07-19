@@ -8,8 +8,7 @@ console.log('NEO4J_URI:', process.env.NEO4J_URI);
 console.log('NEO4J_USERNAME:', process.env.NEO4J_USERNAME);
 console.log('NEO4J_PASSWORD:', process.env.NEO4J_PASSWORD ? 'set' : 'not set');
 
-const { verifyConnection } = require('./db/graph');
-const { initSQLite } = require('./db/sqlite');
+const { initFirebase, runEscalationCheck } = require('./db/firebase');
 const { sanitizeRecordDates } = require('./db/dateSanitizer');
 const { initWebSocket } = require('./ws/broadcast');
 
@@ -70,15 +69,23 @@ app.use((err, req, res, next) => {
 
 // Start Server
 async function startServer() {
-  // Initialize Dual-Database split
-  initSQLite();
-
-  // RUST-PROOF NEO4J INTEGRATION: Test driver connection before starting the server
-  await verifyConnection();
+  // Initialize Firebase Database
+  initFirebase();
 
   // Create HTTP server and attach WebSocket to the same port
   const server = http.createServer(app);
   initWebSocket(server);
+
+  // Set up auto-escalation check to run every hour (3600000 ms)
+  setInterval(() => {
+    runEscalationCheck()
+      .then(res => {
+        if (res.escalated_count > 0) {
+          console.log(`[Auto-Escalation] Escalated ${res.escalated_count} overdue complaints.`);
+        }
+      })
+      .catch(err => console.error('[Auto-Escalation] Check failed:', err));
+  }, 60 * 60 * 1000);
 
   // Listen on '0.0.0.0' to permit external physical edge hardware devices on the local network
   server.listen(PORT, '0.0.0.0', () => {

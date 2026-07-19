@@ -117,11 +117,16 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
       } else if (msg.type === 'new_sensor_alert') {
         setSensorAlerts(prev => [msg.data, ...prev]);
       } else if (msg.type === 'sensor_resolved') {
+        // Remove resolved sensor alerts for this device
         setSensorAlerts(prev => prev.filter(s => s.device_id !== msg.data.device_id));
       } else if (msg.type === 'complaint_updated') {
         setComplaints(prev => prev.map(c => {
           if (c.id === msg.data.id || c.complaint_number === msg.data.id) {
-            return { ...c, status: msg.data.status };
+            return { 
+              ...c, 
+              status: msg.data.status,
+              similar_count: msg.data.similar_count !== undefined ? msg.data.similar_count : c.similar_count
+            };
           }
           return c;
         }));

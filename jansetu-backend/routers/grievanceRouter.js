@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { spawn } = require('child_process');
 const path = require('path');
-const { saveGrievanceDraft } = require('../db/sqlite');
+const { saveGrievanceDraft } = require('../db/firebase');
 const crypto = require('crypto');
 
 // POST /api/grievance - Process raw citizen text into formal dual-language grievance drafts
@@ -106,10 +106,10 @@ router.post('/', (req, res) => {
 });
 
 // GET /api/grievance/history - Retrieve previously generated grievance drafts
-router.get('/history', (req, res) => {
+router.get('/history', async (req, res) => {
   try {
-    const { getGrievanceDrafts } = require('../db/sqlite');
-    const drafts = getGrievanceDrafts(50);
+    const { getGrievanceDrafts } = require('../db/firebase');
+    const drafts = await getGrievanceDrafts(50);
     res.status(200).json({ success: true, data: drafts });
   } catch (error) {
     console.error('Error fetching grievance history:', error);

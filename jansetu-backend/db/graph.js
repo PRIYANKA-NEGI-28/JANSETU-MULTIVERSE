@@ -64,6 +64,7 @@ async function createComplaintNode(data) {
       id: $id,
       complaint_number: $complaint_number,
       citizen_name: $citizen_name,
+      citizen_phone: $citizen_phone,
       issueType: $issueType,
       issue_type: $issueType,
       department: $department,
@@ -77,6 +78,7 @@ async function createComplaintNode(data) {
       imageUrl: $imageUrl,
       urgency: $urgency,
       status: $status,
+      similar_count: 1,
       created_at: datetime(),
       createdAt: datetime()
     })
@@ -90,6 +92,7 @@ async function createComplaintNode(data) {
     id: data.id,
     complaint_number: data.complaint_number || `JS-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(Math.random()*9000)+1000}`,
     citizen_name: data.citizenName || 'Anonymous',
+    citizen_phone: data.citizenPhone || '',
     issueType: data.issueType || 'General',
     department: data.department || 'General Administration',
     area: data.area || 'Unknown Area',

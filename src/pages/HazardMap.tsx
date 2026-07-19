@@ -3,7 +3,7 @@ import {
   MapPin, Camera, Upload, AlertTriangle, Zap, X, CheckCircle,
   Filter, Layers,
   Users, TrendingUp, Clock, ArrowRight,
-  Zap as ElectricIcon, Circle as PotholeIcon, Droplets, Building, Flame,
+  Zap as ElectricIcon, Circle as PotholeIcon, Droplets, Building, Flame, Lightbulb,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Circle } from 'react-leaflet';
 import L from 'leaflet';
@@ -20,7 +20,7 @@ interface HazardReport {
   id: string;
   lat: number;
   lng: number;
-  type: 'wire' | 'pothole' | 'flood' | 'collapse' | 'fire_hazard';
+  type: 'wire' | 'pothole' | 'flood' | 'collapse' | 'fire_hazard' | 'street_light';
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   description: string;
   photoUrl: string | null;
@@ -48,6 +48,7 @@ const HAZARD_TYPES = [
   { value: 'flood', labelKey: 'hazard_type_flood' as const, icon: <Droplets size={14} />, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' },
   { value: 'collapse', labelKey: 'hazard_type_collapse' as const, icon: <Building size={14} />, color: 'text-red-600', bg: 'bg-red-50 border-red-200' },
   { value: 'fire_hazard', labelKey: 'hazard_type_fire' as const, icon: <Flame size={14} />, color: 'text-red-700', bg: 'bg-red-100 border-red-300' },
+  { value: 'street_light', labelKey: 'hazard_type_street_light' as const, icon: <Lightbulb size={14} />, color: 'text-orange-500', bg: 'bg-orange-50 border-orange-200' },
 ] as const;
 
 const SEV_COLOR: Record<string, string> = {
@@ -86,7 +87,7 @@ function buildClusters(reports: HazardReport[]): Cluster[] {
       id: r.id,
       lat: nearby.reduce((s, o) => s + o.lat, 0) / nearby.length,
       lng: nearby.reduce((s, o) => s + o.lng, 0) / nearby.length,
-      count: nearby.length,
+      count: nearby.reduce((s, o) => s + (o.clusterSize || 1), 0),
       severity: maxSev,
       type: r.type,
       area: r.area,
@@ -108,9 +109,10 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
   const { sensorAlerts, complaints } = useDashboard();
   
   // Create a combined list of hazards from real context state
-  // We'll map sensorAlerts and complaints to the HazardReport interface
-  const mapIssueToHazard = (issueStr: string = ''): 'wire' | 'pothole' | 'flood' | 'collapse' | 'fire_hazard' => {
+  // We'll map complaints to the HazardReport interface (sensors already auto-create complaints)
+  const mapIssueToHazard = (issueStr: string = ''): 'wire' | 'pothole' | 'flood' | 'collapse' | 'fire_hazard' | 'street_light' => {
     const s = issueStr.toLowerCase();
+    if (s.includes('light') || s.includes('lamp')) return 'street_light';
     if (s.includes('water') || s.includes('flood') || s.includes('drain') || s.includes('sewage') || s.includes('leak')) return 'flood';
     if (s.includes('wire') || s.includes('electric') || s.includes('cable') || s.includes('power')) return 'wire';
     if (s.includes('fire') || s.includes('smoke') || s.includes('burn') || s.includes('gas')) return 'fire_hazard';
@@ -132,20 +134,6 @@ export default function HazardMap({ onNavigate, user }: HazardMapProps) {
       status: (c.status === 'RESOLVED' ? 'RESOLVED' : c.status === 'ASSIGNED' || c.status === 'IN_PROGRESS' ? 'ACKNOWLEDGED' : 'OPEN') as any,
       clusterSize: c.similar_count || 1,
       createdAt: c.created_at,
-    })),
-    ...(sensorAlerts || []).map(s => ({
-      id: s.id,
-      lat: s.lat,
-      lng: s.lng,
-      type: s.type as any,
-      severity: s.severity,
-      description: s.description,
-      photoUrl: null,
-      reporterName: 'Automated Sensor',
-      area: s.area,
-      status: 'OPEN' as const,
-      clusterSize: 1,
-      createdAt: s.createdAt,
     }))
   ];
   

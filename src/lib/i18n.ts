@@ -408,6 +408,7 @@ export const t = {
     hazard_type_flood: 'Waterlogging',
     hazard_type_collapse: 'Structure Collapse Risk',
     hazard_type_fire: 'Fire Hazard',
+    hazard_type_street_light: 'Street Light',
     hazard_report_count: (n: number) => `${n} report${n > 1 ? 's' : ''}`,
 
     // RTI Drafter page
@@ -918,6 +919,7 @@ export const t = {
     hazard_type_flood: 'जलभराव',
     hazard_type_collapse: 'संरचना गिरने का जोखिम',
     hazard_type_fire: 'अग्नि खतरा',
+    hazard_type_street_light: 'स्ट्रीट लाइट',
     hazard_report_count: (n: number) => `${n} रिपोर्ट${n > 1 ? 'एं' : ''}`,
 
     // RTI Drafter page
