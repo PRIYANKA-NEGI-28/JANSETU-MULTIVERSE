@@ -61,6 +61,26 @@ function initSQLite() {
       area TEXT,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS officers (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      rank TEXT,
+      department TEXT,
+      badge_number TEXT,
+      phone TEXT,
+      ward TEXT,
+      is_active BOOLEAN DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS assignments (
+      id TEXT PRIMARY KEY,
+      complaint_id TEXT,
+      officer_id TEXT,
+      type TEXT,
+      assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
   console.log('Successfully initialized SQLite Database.');
 }
@@ -128,6 +148,80 @@ function getSensorAlerts() {
   return db.prepare(`SELECT * FROM sensor_alerts ORDER BY createdAt DESC`).all();
 }
 
+// --- Officer Management ---
+
+function seedOfficers() {
+  const departments = [
+    'Municipal Corporation',
+    'Electrical',
+    'Water',
+    'Fire',
+    'General Administration',
+    'Public Works',
+    'Health'
+  ];
+
+  let seededCount = 0;
+  
+  // Check if already seeded
+  const existingCount = db.prepare('SELECT COUNT(*) as count FROM officers').get().count;
+  if (existingCount > 0) return 0;
+
+  const stmt = db.prepare('INSERT INTO officers (id, name, rank, department, badge_number, phone, ward) VALUES (?, ?, ?, ?, ?, ?, ?)');
+
+  departments.forEach((dept, index) => {
+    // Junior Officer
+    stmt.run(
+      `off_${index}_jun`,
+      `Junior Officer (${dept})`,
+      'Junior Level',
+      dept,
+      `BADGE-J-${1000 + index}`,
+      `555-01${index.toString().padStart(2, '0')}`,
+      'All Wards'
+    );
+    // Senior Officer
+    stmt.run(
+      `off_${index}_sen`,
+      `Senior Officer (${dept})`,
+      'Senior Level',
+      dept,
+      `BADGE-S-${2000 + index}`,
+      `555-02${index.toString().padStart(2, '0')}`,
+      'All Wards'
+    );
+    seededCount += 2;
+  });
+
+  return seededCount;
+}
+
+function getAllOfficers() {
+  return db.prepare('SELECT * FROM officers').all();
+}
+
+function getOfficersByDepartment(department) {
+  return db.prepare('SELECT * FROM officers WHERE department = ?').all(department);
+}
+
+function assignOfficer(complaintId, officerId) {
+  const stmt = db.prepare('INSERT INTO assignments (id, complaint_id, officer_id, type) VALUES (?, ?, ?, ?)');
+  const id = `asgn_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  stmt.run(id, complaintId, officerId, 'PRIMARY');
+  updateComplaint(complaintId, { status: 'ASSIGNED' });
+}
+
+function escalateComplaint(complaintId, escalationOfficerId) {
+  const stmt = db.prepare('INSERT INTO assignments (id, complaint_id, officer_id, type) VALUES (?, ?, ?, ?)');
+  const id = `esc_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  stmt.run(id, complaintId, escalationOfficerId, 'ESCALATION');
+  updateComplaint(complaintId, { status: 'ESCALATED' });
+}
+
+function updateComplaintStatus(id, status) {
+  updateComplaint(id, { status });
+}
+
 module.exports = {
   db,
   initSQLite,
@@ -140,5 +234,11 @@ module.exports = {
   getComplaintsByPhone,
   getComplaintByNumber,
   saveSensorAlert,
-  getSensorAlerts
+  getSensorAlerts,
+  seedOfficers,
+  getAllOfficers,
+  getOfficersByDepartment,
+  assignOfficer,
+  escalateComplaint,
+  updateComplaintStatus
 };

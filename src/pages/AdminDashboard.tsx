@@ -548,13 +548,15 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
                 <h2 className="text-xl font-bold text-gray-900">{T.admin_officers_title}</h2>
                 <p className="text-sm text-gray-500 mt-0.5">{T.admin_officers_subtitle}</p>
               </div>
-              <button
-                onClick={handleSeedOfficers}
-                disabled={seeding}
-                className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors"
-              >
-                {seeding ? <><RefreshCw size={14} className="animate-spin" /> {T.admin_officers_seeding}</> : <><UserCog size={14} /> {T.admin_officers_seed}</>}
-              </button>
+              {officers.length === 0 && (
+                <button
+                  onClick={handleSeedOfficers}
+                  disabled={seeding}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors"
+                >
+                  {seeding ? <><RefreshCw size={14} className="animate-spin" /> {T.admin_officers_seeding}</> : <><UserCog size={14} /> {T.admin_officers_seed}</>}
+                </button>
+              )}
             </div>
 
             {/* Department filter */}
@@ -635,10 +637,10 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
               </div>
               <p className="text-sm text-gray-500 mb-4">{T.admin_officers_assign_dept}: <span className="font-semibold text-gray-700">{assignModal.department}</span></p>
               <div className="max-h-64 overflow-y-auto space-y-2">
-                {(officerDeptFilter === 'ALL' ? officers : officers.filter(o => o.department === assignModal.department)).length === 0 ? (
+                {(officerDeptFilter === 'ALL' ? officers : officers.filter(o => assignModal.department?.includes(o.department))).length === 0 ? (
                   <p className="text-sm text-gray-400 text-center py-4">{T.admin_officers_none}</p>
                 ) : (
-                  (officerDeptFilter === 'ALL' ? officers.filter(o => o.department === assignModal.department) : officers.filter(o => o.department === assignModal.department)).map(officer => (
+                  (officerDeptFilter === 'ALL' ? officers.filter(o => assignModal.department?.includes(o.department)) : officers.filter(o => assignModal.department?.includes(o.department))).map(officer => (
                     <button
                       key={officer.id}
                       onClick={() => handleAssignOfficer(officer.id)}
@@ -672,10 +674,17 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
               </div>
               <p className="text-sm text-gray-500 mb-4">{T.admin_officers_escalate_select}</p>
               <div className="max-h-64 overflow-y-auto space-y-2">
-                {officers.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-4">{T.admin_officers_none}</p>
-                ) : (
-                  officers.map(officer => (
+                {(() => {
+                  const deptOfficers = officers.filter(o => {
+                    const complaint = localComplaints.find(c => c.id === escalateModal.complaintId);
+                    return complaint?.department?.includes(o.department) && o.rank === 'Senior Level';
+                  });
+
+                  if (deptOfficers.length === 0) {
+                    return <p className="text-sm text-gray-400 text-center py-4">{T.admin_officers_none}</p>;
+                  }
+
+                  return deptOfficers.map(officer => (
                     <button
                       key={officer.id}
                       onClick={() => handleEscalateOfficer(officer.id)}
@@ -691,8 +700,8 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
                         <span className="text-xs text-gray-400 flex items-center gap-1"><Phone size={10} />{officer.phone}</span>
                       )}
                     </button>
-                  ))
-                )}
+                  ));
+                })()}
               </div>
               <button onClick={() => setEscalateModal(null)} className="w-full mt-4 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl transition-colors">{T.admin_officers_cancel}</button>
             </div>

@@ -94,6 +94,38 @@ router.post('/', async (req, res) => {
         return res.json({ success: true, data: mapped });
       }
     }
+
+    const { seedOfficers, getAllOfficers, getOfficersByDepartment, assignOfficer, escalateComplaint, updateComplaintStatus } = require('../db/sqlite');
+
+    if (action === 'seedOfficers') {
+      const count = seedOfficers();
+      return res.json({ success: true, data: { seeded: count } });
+    }
+
+    if (action === 'getAllOfficers') {
+      const officers = getAllOfficers();
+      return res.json({ success: true, data: officers });
+    }
+
+    if (action === 'getOfficersByDepartment') {
+      const officers = getOfficersByDepartment(params.department);
+      return res.json({ success: true, data: officers });
+    }
+
+    if (action === 'assignOfficer') {
+      assignOfficer(params.complaintId, params.officerId);
+      return res.json({ success: true, data: { success: true } });
+    }
+
+    if (action === 'escalateComplaint') {
+      escalateComplaint(params.complaintId, params.escalationOfficerId);
+      return res.json({ success: true, data: { success: true } });
+    }
+
+    if (action === 'updateStatus') {
+      updateComplaintStatus(params.id, params.status);
+      return res.json({ success: true, data: { success: true } });
+    }
     
     return res.status(400).json({ error: 'Unknown action' });
   } catch (error) {
