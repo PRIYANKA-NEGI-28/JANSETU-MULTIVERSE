@@ -64,24 +64,6 @@ const SEV_TEXT: Record<string, string> = {
   CRITICAL: 'text-red-700 bg-red-100',
 };
 
-// Seed data for demo — real Delhi/Ghaziabad coordinates
-const SEED_REPORTS: HazardReport[] = [
-  { id: 'h1', lat: 28.6139, lng: 77.2090, type: 'wire', severity: 'CRITICAL', description: 'Loose live wire hanging 3 feet off ground near school gate', reporterName: 'Priya Sharma', area: 'Connaught Place', status: 'OPEN', clusterSize: 4, createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), photoUrl: 'https://images.pexels.com/photos/1108101/pexels-photo-1108101.jpeg?auto=compress&cs=tinysrgb&w=400' },
-  { id: 'h2', lat: 28.6145, lng: 77.2100, type: 'wire', severity: 'HIGH', description: 'Overhead cable snapped after rain, hanging over road', reporterName: 'Ravi Kumar', area: 'Connaught Place', status: 'OPEN', clusterSize: 4, createdAt: new Date(Date.now() - 86400000 * 1).toISOString(), photoUrl: null },
-  { id: 'h3', lat: 28.6130, lng: 77.2080, type: 'wire', severity: 'CRITICAL', description: 'Sparking electrical wire on footpath, danger to pedestrians', reporterName: 'Anita Singh', area: 'Connaught Place', status: 'ACKNOWLEDGED', clusterSize: 4, createdAt: new Date(Date.now() - 86400000 * 3).toISOString(), photoUrl: null },
-  { id: 'h4', lat: 28.6150, lng: 77.2095, type: 'wire', severity: 'HIGH', description: 'Telecom cable hanging low, vehicles hitting it', reporterName: 'Suresh Gupta', area: 'Connaught Place', status: 'OPEN', clusterSize: 4, createdAt: new Date(Date.now() - 86400000 * 0.5).toISOString(), photoUrl: null },
-  { id: 'h5', lat: 28.5672, lng: 77.2100, type: 'pothole', severity: 'HIGH', description: 'Giant pothole on main road, 2 bikes already fell', reporterName: 'Deepak Joshi', area: 'Lajpat Nagar', status: 'OPEN', clusterSize: 3, createdAt: new Date(Date.now() - 86400000 * 1.5).toISOString(), photoUrl: 'https://images.pexels.com/photos/2244746/pexels-photo-2244746.jpeg?auto=compress&cs=tinysrgb&w=400' },
-  { id: 'h6', lat: 28.5680, lng: 77.2115, type: 'pothole', severity: 'MEDIUM', description: 'Series of potholes after monsoon, road completely damaged', reporterName: 'Meena Rao', area: 'Lajpat Nagar', status: 'OPEN', clusterSize: 3, createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), photoUrl: null },
-  { id: 'h7', lat: 28.5660, lng: 77.2090, type: 'pothole', severity: 'HIGH', description: 'Deep crater near traffic signal, causing traffic jams', reporterName: 'Vikas Malhotra', area: 'Lajpat Nagar', status: 'OPEN', clusterSize: 3, createdAt: new Date(Date.now() - 86400000 * 0.8).toISOString(), photoUrl: null },
-  { id: 'h8', lat: 28.6280, lng: 77.2165, type: 'flood', severity: 'CRITICAL', description: 'Street completely waterlogged, knee-deep water, vehicles stranded', reporterName: 'Kavita Nair', area: 'Karol Bagh', status: 'OPEN', clusterSize: 5, createdAt: new Date(Date.now() - 86400000 * 0.3).toISOString(), photoUrl: 'https://images.pexels.com/photos/1118873/pexels-photo-1118873.jpeg?auto=compress&cs=tinysrgb&w=400' },
-  { id: 'h9', lat: 28.6290, lng: 77.2175, type: 'flood', severity: 'HIGH', description: 'Sewage overflow mixing with floodwater, health hazard', reporterName: 'Ajay Verma', area: 'Karol Bagh', status: 'OPEN', clusterSize: 5, createdAt: new Date(Date.now() - 86400000 * 0.4).toISOString(), photoUrl: null },
-  { id: 'h10', lat: 28.6270, lng: 77.2155, type: 'flood', severity: 'CRITICAL', description: 'Flooded underpass, cars submerged, no warning signs', reporterName: 'Pooja Tiwari', area: 'Karol Bagh', status: 'ACKNOWLEDGED', clusterSize: 5, createdAt: new Date(Date.now() - 86400000 * 0.2).toISOString(), photoUrl: null },
-  { id: 'h11', lat: 28.7041, lng: 77.1025, type: 'collapse', severity: 'CRITICAL', description: 'Old building wall showing major cracks, may collapse any time', reporterName: 'Ramesh Chand', area: 'Rohini Sector 3', status: 'OPEN', clusterSize: 1, createdAt: new Date(Date.now() - 86400000 * 0.1).toISOString(), photoUrl: null },
-  { id: 'h12', lat: 28.6304, lng: 77.2177, type: 'fire_hazard', severity: 'HIGH', description: 'Gas cylinder shop next to open electrical switchboard, extreme fire risk', reporterName: 'Nisha Patel', area: 'Paharganj', status: 'OPEN', clusterSize: 2, createdAt: new Date(Date.now() - 86400000 * 1).toISOString(), photoUrl: null },
-  // Ghaziabad
-  { id: 'h13', lat: 28.6358, lng: 77.3641, type: 'wire', severity: 'HIGH', description: 'Broken street light pole with exposed wires on main road', reporterName: 'Sanjay Kumar', area: 'Indirapuram', status: 'OPEN', clusterSize: 2, createdAt: new Date(Date.now() - 86400000 * 1.2).toISOString(), photoUrl: null },
-  { id: 'h14', lat: 28.6370, lng: 77.3650, type: 'pothole', severity: 'MEDIUM', description: 'Multiple potholes on sector road, auto rickshaws struggling', reporterName: 'Sunita Yadav', area: 'Vaishali Sector 4', status: 'OPEN', clusterSize: 2, createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), photoUrl: null },
-];
 
 function buildClusters(reports: HazardReport[]): Cluster[] {
   const threshold = 0.003; // ~300m radius
@@ -92,6 +74,7 @@ function buildClusters(reports: HazardReport[]): Cluster[] {
     if (used.has(r.id)) continue;
     const nearby = reports.filter(o =>
       !used.has(o.id) &&
+      o.type === r.type &&
       Math.abs(o.lat - r.lat) < threshold &&
       Math.abs(o.lng - r.lng) < threshold
     );

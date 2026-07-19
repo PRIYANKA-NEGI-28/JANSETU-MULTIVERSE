@@ -55,7 +55,9 @@ router.post('/', catchAsync(async (req, res) => {
           urgency: c.urgency,
           status: c.status,
           created_at: c.createdAt,
-          similar_count: 0
+          similar_count: 0,
+          officer_name: c.officer_name || undefined,
+          officer_phone: c.officer_phone || undefined
         }});
       }
     }

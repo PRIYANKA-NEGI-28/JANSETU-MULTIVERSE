@@ -179,6 +179,23 @@ export default function TrackComplaint({ onNavigate, user }: TrackComplaintProps
               </div>
             </ScrollReveal>
 
+            {/* Assigned Officer Details */}
+            {complaint.officer_name && (
+              <ScrollReveal direction="scale" delay={100}>
+                <div className="bg-white rounded-2xl border border-blue-200 p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <UserCheck size={20} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">Assigned Officer: {complaint.officer_name}</p>
+                      <p className="text-sm text-gray-500 font-medium">Contact: {complaint.officer_phone || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              </ScrollReveal>
+            )}
+
             {/* Escalation */}
             {complaint.status === 'ESCALATED' && (
               <ScrollReveal direction="scale">

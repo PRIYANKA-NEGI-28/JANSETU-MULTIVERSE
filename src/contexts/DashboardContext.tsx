@@ -10,6 +10,8 @@ export interface SensorAlert {
   description: string;
   area: string;
   createdAt: string;
+  device_id?: string;
+  status?: string;
 }
 
 export interface GlobalMetrics {
