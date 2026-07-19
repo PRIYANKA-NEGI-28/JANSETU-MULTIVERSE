@@ -24,12 +24,11 @@ if sys.stdout.encoding != 'utf-8':
 if sys.stderr.encoding != 'utf-8':
     sys.stderr.reconfigure(encoding='utf-8')
 
-# Try to import llama-cpp-python for GGUF model execution
 try:
-    from llama_cpp import Llama
-    HAS_LLAMA_CPP = True
+    import onnxruntime_genai as og
+    HAS_ONNX = True
 except ImportError:
-    HAS_LLAMA_CPP = False
+    HAS_ONNX = False
 
 
 # ─── DEPARTMENT CLASSIFICATION RULES ─────────────────────────────────────────
@@ -310,18 +309,12 @@ def compute_urgency(base: str, text: str) -> str:
 # ─── LLM-BASED EXTRACTION (WHEN MODEL AVAILABLE) ─────────────────────────────
 
 def extract_facts_via_llm(raw_text: str, model_path: str) -> dict:
-    """Use local Qwen GGUF model to intelligently extract facts from messy text."""
-    if not HAS_LLAMA_CPP or not os.path.exists(model_path):
+    """Use onnxruntime_genai to intelligently extract facts from messy text."""
+    if not HAS_ONNX:
+        print("onnxruntime_genai not installed, falling back to regex.", file=sys.stderr)
         return None
-    
+
     try:
-        llm = Llama(
-            model_path=model_path,
-            n_ctx=2048,
-            n_threads=6,
-            verbose=False
-        )
-        
         extraction_prompt = f"""You are a strict fact-extraction engine. Extract ONLY the facts present in this citizen complaint text. Do NOT invent or assume any data.
 
 TEXT: "{raw_text}"
@@ -337,16 +330,27 @@ Extract and return ONLY in this exact JSON format:
 
 Return null for any field where the information is NOT explicitly present in the text. Do not guess."""
 
-        response = llm.create_chat_completion(
-            messages=[
-                {"role": "system", "content": "You extract facts from text. Return only valid JSON. Never invent data."},
-                {"role": "user", "content": extraction_prompt}
-            ],
-            max_tokens=512,
-            temperature=0.1  # Very low temperature for factual extraction
+        formatted_prompt = (
+            "<|im_start|>system\nYou extract facts from text. Return only valid JSON. Never invent data.<|im_end|>\n"
+            f"<|im_start|>user\n{extraction_prompt}<|im_end|>\n"
+            "<|im_start|>assistant\n"
         )
         
-        result_text = response['choices'][0]['message']['content'].strip()
+        model = og.Model(model_path)
+        tokenizer = og.Tokenizer(model)
+        
+        input_tokens = tokenizer.encode(formatted_prompt)
+        
+        params = og.GeneratorParams(model)
+        params.set_search_options(max_length=800, temperature=0.1, past_present_share_buffer=False)
+        params.input_ids = input_tokens
+        
+        output_tokens = model.generate(params)
+        new_tokens = output_tokens[0][len(input_tokens):]
+        result_text = tokenizer.decode(new_tokens)
+        
+        if result_text.endswith("<|im_end|>"):
+            result_text = result_text[:-10]
         
         # Try to parse JSON from the response
         json_match = re.search(r'\{[^{}]*\}', result_text, re.DOTALL)
@@ -620,7 +624,7 @@ def process_grievance(raw_text: str, applicant_name: str = None, applicant_phone
         "metadata": {
             "llm_used": llm_used if 'llm_used' in dir() else False,
             "model_path": model_path,
-            "processing_device": "CPU (Local Qwen GGUF)" if (HAS_LLAMA_CPP and os.path.exists(model_path)) else "Regex/Template Fallback",
+            "processing_device": "ONNX Runtime GenAI (Snapdragon NPU)" if llm_used else "Regex/Template Fallback",
             "timestamp": datetime.now().isoformat(),
         },
         "status": "success"

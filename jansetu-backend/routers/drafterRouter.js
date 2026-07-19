@@ -5,37 +5,28 @@ const path = require('path');
 const { saveRtiDraft } = require('../db/sqlite');
 const crypto = require('crypto');
 
-<<<<<<< HEAD
-const catchAsync = require('../utils/catchAsync');
-
-// POST /api/drafter - Spawns NPU child process for local LLM inference
-router.post('/', catchAsync(async (req, res) => {
-  const { authorityType, applicantDetails, informationRequired } = req.body;
-=======
 // POST /api/drafter - Spawns Python process for formal statutory RTI generation
 router.post('/', (req, res) => {
   const form = req.body;
->>>>>>> c0f8cb1 (minor)
-  
   if (!form || !form.authorityName) {
     return res.status(400).json({ success: false, error: 'Form data is missing required fields' });
   }
 
   // Spawn the python process to generate the formal RTI application
   const pythonScript = path.join(__dirname, '../ai/rti_drafter.py');
-  const pythonProcess = spawn('python', [pythonScript, JSON.stringify(form)]);
+  const pythonProcess = spawn('C:\\LocalAI\\qai-env\\Scripts\\python.exe', [pythonScript, JSON.stringify(form), '--model', 'C:\\LocalAI\\models\\qwen2.5-onnx']);
 
   let output = '';
   let errorOutput = '';
   let isKilled = false;
 
-  // Enforce strict 15-second timeout
+  // Enforce strict 180-second timeout (increased for local LLM CPU inference)
   const timeoutId = setTimeout(() => {
     isKilled = true;
     pythonProcess.kill('SIGKILL');
-    console.error('LLM Process Timed Out (15s limit). Killed process.');
-    return res.status(504).json({ success: false, error: 'Gateway Timeout: LLM script exceeded 15s limit' });
-  }, 15000);
+    console.error('LLM Process Timed Out (180s limit). Killed process.');
+    return res.status(504).json({ success: false, error: 'Gateway Timeout: LLM script exceeded 180s limit' });
+  }, 180000);
 
   // Collect text stream chunks
   pythonProcess.stdout.on('data', (data) => {
@@ -72,6 +63,6 @@ router.post('/', (req, res) => {
       res.status(200).json({ success: true, draftText: output.trim(), id });
     }
   });
-}));
+});
 
 module.exports = router;

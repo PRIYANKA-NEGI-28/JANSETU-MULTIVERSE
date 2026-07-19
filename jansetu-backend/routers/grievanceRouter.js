@@ -18,7 +18,7 @@ router.post('/', (req, res) => {
 
   // Build command args for the Python grievance officer pipeline
   const pythonScript = path.join(__dirname, '../ai/grievance_officer.py');
-  const args = [pythonScript, rawText];
+  const args = [pythonScript, rawText, '--model', 'C:\\LocalAI\\models\\qwen2.5-onnx'];
 
   if (applicantName) {
     args.push('--name', applicantName);
@@ -31,12 +31,21 @@ router.post('/', (req, res) => {
   }
 
   // Spawn the Python process
-  const pythonProcess = spawn('python', args, {
+  const pythonProcess = spawn('C:\\LocalAI\\qai-env\\Scripts\\python.exe', args, {
     env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
   });
 
   let output = '';
   let errorOutput = '';
+  let isKilled = false;
+
+  // Enforce strict 180-second timeout
+  const timeoutId = setTimeout(() => {
+    isKilled = true;
+    pythonProcess.kill('SIGKILL');
+    console.error('LLM Process Timed Out (180s limit). Killed process.');
+    return res.status(504).json({ success: false, error: 'Gateway Timeout: LLM script exceeded 180s limit' });
+  }, 180000);
 
   // Collect stdout
   pythonProcess.stdout.on('data', (data) => {
@@ -49,6 +58,9 @@ router.post('/', (req, res) => {
   });
 
   pythonProcess.on('close', (code) => {
+    if (isKilled) return;
+    clearTimeout(timeoutId);
+
     if (code !== 0) {
       console.error(`Grievance Officer Python process exited with code ${code}: ${errorOutput}`);
       return res.status(500).json({

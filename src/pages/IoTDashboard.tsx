@@ -60,8 +60,10 @@ export default function IoTDashboard({ onNavigate }: IoTDashboardProps) {
       fetchSensors();
       
       const unsubscribe = subscribe((msg) => {
-        if (msg.type === 'new_sensor_alert' || msg.type === 'sensor_resolved') {
-          fetchSensors();
+        if (msg.type === 'new_sensor_alert') {
+          setSensors(prev => [msg.data, ...prev]);
+        } else if (msg.type === 'sensor_resolved') {
+          setSensors(prev => prev.filter(s => s.device_id !== msg.data.device_id));
         }
       });
       

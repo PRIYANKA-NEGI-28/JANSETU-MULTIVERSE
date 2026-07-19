@@ -140,7 +140,15 @@ function getComplaintsByPhone(phone) {
 }
 
 function getComplaintByNumber(number) {
-  const stmt = db.prepare(`SELECT * FROM complaints WHERE complaint_number = ?`);
+  const stmt = db.prepare(`
+    SELECT c.*, o.name AS officer_name, o.phone AS officer_phone 
+    FROM complaints c
+    LEFT JOIN assignments a ON c.id = a.complaint_id
+    LEFT JOIN officers o ON a.officer_id = o.id
+    WHERE c.complaint_number = ?
+    ORDER BY a.assigned_at DESC
+    LIMIT 1
+  `);
   return stmt.get(number);
 }
 

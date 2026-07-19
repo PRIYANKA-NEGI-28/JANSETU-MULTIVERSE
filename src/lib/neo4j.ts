@@ -38,6 +38,8 @@ export interface Neo4jComplaint {
   created_at: string;
   updated_at: string;
   similar_complaints?: Neo4jComplaint[];
+  officer_name?: string;
+  officer_phone?: string;
 }
 
 export interface Neo4jDepartment {

@@ -23,6 +23,12 @@ if sys.stdout.encoding != 'utf-8':
 if sys.stderr.encoding != 'utf-8':
     sys.stderr.reconfigure(encoding='utf-8')
 
+try:
+    import onnxruntime_genai as og
+    HAS_ONNX = True
+except ImportError:
+    HAS_ONNX = False
+
 
 # ─── QUERY PARSER ─────────────────────────────────────────────────────────────
 
@@ -210,6 +216,53 @@ Signature of Applicant
 आवेदक के हस्ताक्षर
 ---"""
 
+# ─── LLM-BASED GENERATOR ──────────────────────────────────────────────────────
+
+def generate_llm_rti(fields: dict, model_path: str) -> str:
+    if not HAS_ONNX:
+        print("onnxruntime_genai not installed, falling back to template.", file=sys.stderr)
+        return None
+
+    try:
+        prompt = (
+            "You are a legal expert in the Right to Information Act, 2005. "
+            "Draft a formal, highly professional RTI Application based on the following details. "
+            "IMPORTANT: Output TWO sections. Section 1: English Draft. Section 2: Hindi Translation of the exact draft.\n\n"
+            f"Applicant Name: {fields.get('applicantName', 'Unknown')}\n"
+            f"Applicant Address: {fields.get('address', '')}, {fields.get('city', '')}\n"
+            f"Target Authority: {fields.get('authorityName', 'Unknown')}\n"
+            f"Information Requested: {fields.get('naturalQuery', 'Unknown')}\n"
+            f"Time Period: {fields.get('timePeriodFrom', 'Unknown')} to {fields.get('timePeriodTo', 'Unknown')}\n"
+            f"Specific Documents Needed: {fields.get('specificDocuments', 'None')}\n"
+        )
+        
+        formatted_prompt = (
+            "<|im_start|>system\nYou are a legal expert in Indian administrative law. Format beautifully using markdown. Do not add conversational fluff.<|im_end|>\n"
+            f"<|im_start|>user\n{prompt}<|im_end|>\n"
+            "<|im_start|>assistant\n"
+        )
+        
+        model = og.Model(model_path)
+        tokenizer = og.Tokenizer(model)
+        
+        input_tokens = tokenizer.encode(formatted_prompt)
+        
+        params = og.GeneratorParams(model)
+        params.set_search_options(max_length=1500, temperature=0.4, past_present_share_buffer=False)
+        params.input_ids = input_tokens
+        
+        output_tokens = model.generate(params)
+        new_tokens = output_tokens[0][len(input_tokens):]
+        generated_text = tokenizer.decode(new_tokens)
+        
+        if generated_text.endswith("<|im_end|>"):
+            generated_text = generated_text[:-10]
+            
+        return generated_text.strip()
+    except Exception as e:
+        print(f"LLM extraction error: {e}", file=sys.stderr)
+        return None
+
 # ─── CLI ENTRYPOINT ───────────────────────────────────────────────────────────
 
 def main():
@@ -218,11 +271,20 @@ def main():
     )
     parser.add_argument("fields_json", type=str,
                         help="JSON string containing the structured form fields")
+    parser.add_argument("--model", type=str, default="ai/models/qwen/Qwen3-0.6B-Q4_0.gguf",
+                        help="Path to the Qwen GGUF model file")
     args = parser.parse_args()
 
     try:
         fields = json.loads(args.fields_json)
-        result_text = generate_exact_format_rti(fields)
+        
+        # Try LLM first
+        result_text = generate_llm_rti(fields, args.model)
+        
+        # Fallback to precise template if LLM fails or is missing
+        if not result_text:
+            result_text = generate_exact_format_rti(fields)
+            
         # Output as JSON with draftText to be consumed by drafterRouter.js
         output = {
             "draftText": result_text,

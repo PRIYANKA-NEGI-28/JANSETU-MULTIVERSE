@@ -13,89 +13,96 @@ interface WSMessage {
 
 type WSListener = (msg: WSMessage) => void;
 
-/**
- * A global WebSocket hook that connects once and allows multiple subscribers.
- * Automatically reconnects on disconnection with exponential backoff.
- */
-export function useWebSocket() {
-  const wsRef = useRef<WebSocket | null>(null);
-  const listenersRef = useRef<Set<WSListener>>(new Set());
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectDelayRef = useRef(1000);
-  const [connected, setConnected] = useState(false);
+let globalWs: WebSocket | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectDelay = 1000;
+let isConnected = false;
+const globalListeners = new Set<WSListener>();
 
-  const connect = useCallback(() => {
-    // Build WebSocket URL from the current page or VITE_BACKEND_URL
-    let wsUrl: string;
-    if (BACKEND_URL) {
-      wsUrl = BACKEND_URL.replace(/^http/, 'ws');
-    } else {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      wsUrl = `${protocol}//${window.location.hostname}:3000`;
-    }
+function connectGlobal() {
+  if (globalWs) return;
 
-    try {
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+  let wsUrl: string;
+  if (BACKEND_URL) {
+    wsUrl = BACKEND_URL.replace(/^http/, 'ws');
+  } else {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    wsUrl = `${protocol}//${window.location.hostname}:3000`;
+  }
 
-      ws.onopen = () => {
-        console.log('[WS] Connected to', wsUrl);
-        setConnected(true);
-        reconnectDelayRef.current = 1000; // Reset backoff on successful connect
-      };
+  try {
+    globalWs = new WebSocket(wsUrl);
 
-      ws.onmessage = (event) => {
-        try {
-          const msg: WSMessage = JSON.parse(event.data);
-          listenersRef.current.forEach((listener) => {
-            try {
-              listener(msg);
-            } catch (e) {
-              console.error('[WS] Listener error:', e);
-            }
-          });
-        } catch (e) {
-          console.warn('[WS] Failed to parse message:', event.data);
-        }
-      };
+    globalWs.onopen = () => {
+      console.log('[WS Global] Connected to', wsUrl);
+      isConnected = true;
+      reconnectDelay = 1000;
+      globalListeners.forEach(l => l({ type: 'connected', data: null }));
+    };
 
-      ws.onclose = () => {
-        console.log('[WS] Disconnected, will reconnect in', reconnectDelayRef.current, 'ms');
-        setConnected(false);
-        wsRef.current = null;
-
-        // Exponential backoff reconnection (max 15s)
-        reconnectTimerRef.current = setTimeout(() => {
-          reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 1.5, 15000);
-          connect();
-        }, reconnectDelayRef.current);
-      };
-
-      ws.onerror = (err) => {
-        console.error('[WS] Error:', err);
-        ws.close();
-      };
-    } catch (err) {
-      console.error('[WS] Failed to create WebSocket:', err);
-      reconnectTimerRef.current = setTimeout(connect, reconnectDelayRef.current);
-    }
-  }, []);
-
-  useEffect(() => {
-    connect();
-    return () => {
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-      if (wsRef.current) {
-        wsRef.current.onclose = null; // Prevent reconnect on intentional close
-        wsRef.current.close();
+    globalWs.onmessage = (event) => {
+      try {
+        const msg: WSMessage = JSON.parse(event.data);
+        globalListeners.forEach((listener) => {
+          try {
+            listener(msg);
+          } catch (e) {
+            console.error('[WS Global] Listener error:', e);
+          }
+        });
+      } catch (e) {
+        console.warn('[WS Global] Failed to parse message:', event.data);
       }
     };
-  }, [connect]);
+
+    globalWs.onclose = () => {
+      console.log('[WS Global] Disconnected, will reconnect in', reconnectDelay, 'ms');
+      isConnected = false;
+      globalWs = null;
+
+      reconnectTimer = setTimeout(() => {
+        reconnectDelay = Math.min(reconnectDelay * 1.5, 15000);
+        connectGlobal();
+      }, reconnectDelay);
+    };
+
+    globalWs.onerror = (err) => {
+      console.error('[WS Global] Error:', err);
+      globalWs?.close();
+    };
+  } catch (err) {
+    console.error('[WS Global] Failed to create WebSocket:', err);
+    reconnectTimer = setTimeout(connectGlobal, reconnectDelay);
+  }
+}
+
+if (typeof window !== 'undefined') {
+  connectGlobal();
+}
+
+/**
+ * A global WebSocket hook that connects once and allows multiple subscribers.
+ * Uses a true singleton WebSocket connection.
+ */
+export function useWebSocket() {
+  const [connected, setConnected] = useState(isConnected);
+
+  useEffect(() => {
+    const handleConnect = (msg: WSMessage) => {
+      if (msg.type === 'connected') setConnected(true);
+    };
+    globalListeners.add(handleConnect);
+    const interval = setInterval(() => setConnected(isConnected), 1000);
+    return () => {
+      globalListeners.delete(handleConnect);
+      clearInterval(interval);
+    };
+  }, []);
 
   const subscribe = useCallback((listener: WSListener) => {
-    listenersRef.current.add(listener);
+    globalListeners.add(listener);
     return () => {
-      listenersRef.current.delete(listener);
+      globalListeners.delete(listener);
     };
   }, []);
 

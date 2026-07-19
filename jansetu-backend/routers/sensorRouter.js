@@ -5,11 +5,7 @@ const { saveSensorAlert, getSensorAlerts, saveComplaint } = require('../db/sqlit
 const catchAsync = require('../utils/catchAsync');
 const { broadcast } = require('../ws/broadcast');
 
-// Hardcoded location and assignment profiles mapped to device IDs
-const DEVICE_PROFILES = {
-  'UNO_Q_01': { lat: 28.6139, lng: 77.2090, ward: 'Central Ward', department: 'Electrical Maintenance' },
-  'UNO_Q_02': { lat: 28.5355, lng: 77.2410, ward: 'South Ward', department: 'Water Supply' }
-};
+// Fallback profile if IoT device does not send its location/department metadata
 const FALLBACK_PROFILE = { lat: 28.6000, lng: 77.2000, ward: 'General Ward', department: 'City Maintenance' };
 
 // GET /api/sensor - Fetch all active sensor anomalies
@@ -55,15 +51,31 @@ router.post('/', catchAsync(async (req, res) => {
     return res.status(400).json({ success: false, error: 'Missing device_id or status' });
   }
 
+  // Strict Device and Status Validation
+  if (!device_id.toUpperCase().includes('UNO_Q')) {
+    console.log('Rejected sensor payload: Device must be a UNO Q unit.');
+    return res.status(403).json({ success: false, error: 'Unauthorized device' });
+  }
+
+  if (status !== 'FAULT') {
+    console.log('Ignored sensor payload: Status is not FAULT.');
+    return res.status(200).json({ success: true, message: 'Ignored non-fault telemetry' });
+  }
+
   if (status === 'FAULT') {
-    const location = DEVICE_PROFILES[device_id] || FALLBACK_PROFILE;
+    const location = {
+      lat: req.body.lat !== undefined ? parseFloat(req.body.lat) : FALLBACK_PROFILE.lat,
+      lng: req.body.lng !== undefined ? parseFloat(req.body.lng) : FALLBACK_PROFILE.lng,
+      ward: 'Sector 135',
+      department: 'Municipal Corporation - General Administration'
+    };
     
     // Automatically file a persistent complaint for the maintenance team
     const complaintId = 'IOT-CMP-' + Date.now();
     const complaintData = {
       id: complaintId,
       complaint_number: complaintId,
-      citizenName: 'Anonymous Citizen (IoT Monitor)',
+      citizenName: 'IoT',
       citizenPhone: 'N/A',
       rawText: `Automatic fault detected by sensor ${device_id}. Immediate maintenance required.`,
       language: 'en',
@@ -71,7 +83,7 @@ router.post('/', catchAsync(async (req, res) => {
       department: location.department,
       area: location.ward,
       ward: location.ward,
-      issueType: type === 'STREET_LIGHT' ? 'Street Light Issue' : type === 'GAS_LEAK' ? 'Gas Leakage' : 'Infrastructure Fault',
+      issueType: 'Street light damage',
       lat: location.lat,
       lng: location.lng,
       imageUrl: null,
@@ -86,7 +98,7 @@ router.post('/', catchAsync(async (req, res) => {
       // The graph.js functions catch their own Neo4j errors and return mock data.
       // Therefore, this try block will never throw a Neo4j error, meaning the outer catch is never hit.
       // We must explicitly save to SQLite here for redundancy!
-      const sensorData = result.records[0]?.get('a').properties || {
+      const rawProperties = result.records[0]?.get('a').properties || {
         id: 'SENS-' + Date.now(),
         device_id,
         type: type || 'UNKNOWN',
@@ -100,6 +112,9 @@ router.post('/', catchAsync(async (req, res) => {
         area: location.ward,
         createdAt: new Date().toISOString()
       };
+      
+      const { sanitizeRecordDates } = require('../db/dateSanitizer');
+      const sensorData = sanitizeRecordDates(rawProperties);
       
       // Save the sensor alert to SQLite fallback DB
       saveSensorAlert({

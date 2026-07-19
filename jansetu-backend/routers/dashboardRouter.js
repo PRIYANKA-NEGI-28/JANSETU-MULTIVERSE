@@ -55,11 +55,49 @@ router.post('/', catchAsync(async (req, res) => {
           urgency: c.urgency,
           status: c.status,
           created_at: c.createdAt,
-          similar_count: 0
+          similar_count: 0,
+          officer_name: c.officer_name || undefined,
+          officer_phone: c.officer_phone || undefined
         }});
       }
     }
     
+    if (action === 'getAllComplaints') {
+      try {
+        const query = `
+          MATCH (c:Complaint)
+          RETURN c ORDER BY c.created_at DESC
+        `;
+        const result = await runQuery(query);
+        const complaints = result.records.map(r => r.get('c').properties);
+        return res.json({ success: true, data: complaints });
+      } catch (err) {
+        console.log('Neo4j getAllComplaints failed, using SQLite fallback');
+        const complaints = getAllComplaints();
+        const mapped = complaints.map(c => ({
+          id: c.id,
+          complaint_number: c.complaint_number,
+          citizen_name: c.citizen_name,
+          citizen_phone: c.citizen_phone,
+          issue_type: c.issueType,
+          department: c.department,
+          area: c.area,
+          ward: c.ward,
+          raw_text: c.raw_text,
+          summary: c.summary,
+          language: c.language,
+          lat: c.lat,
+          lng: c.lng,
+          imageUrl: c.imageUrl,
+          urgency: c.urgency,
+          status: c.status,
+          created_at: c.createdAt,
+          similar_count: 0
+        }));
+        return res.json({ success: true, data: mapped });
+      }
+    }
+
     if (action === 'getUserComplaints') {
       try {
         const query = `

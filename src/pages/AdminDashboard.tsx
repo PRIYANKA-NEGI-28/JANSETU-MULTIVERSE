@@ -162,11 +162,7 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
     if (!assignModal) return;
     setAssigning(true);
     try {
-      const res = await assignOfficerToComplaint(assignModal.complaintId, officerId);
-      if (!res.ok) {
-        toast('Unable to sync assignment with server. Retrying...', 'error');
-        throw new Error('Assignment failed');
-      }
+      await assignOfficerToComplaint(assignModal.complaintId, officerId);
       setLocalComplaints(prev => prev?.map(c => 
         c.id === assignModal.complaintId ? { ...c, status: 'ASSIGNED' as const } : c
       ) || []);
@@ -186,11 +182,7 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
     if (!escalateModal) return;
     setAssigning(true);
     try {
-      const res = await escalateComplaintToOfficer(escalateModal.complaintId, officerId);
-      if (!res.ok) {
-        toast('Unable to sync escalation with server. Retrying...', 'error');
-        throw new Error('Escalation failed');
-      }
+      await escalateComplaintToOfficer(escalateModal.complaintId, officerId);
       setLocalComplaints(prev => prev?.map(c => 
         c.id === escalateModal.complaintId ? { ...c, status: 'ESCALATED' as const } : c
       ) || []);
@@ -211,11 +203,17 @@ export default function AdminDashboard({ onAdminLogout }: AdminDashboardProps) {
     ...(officers || []).map(o => o.department).filter(Boolean),
   ])).sort();
 
-  const filtered = localComplaints.filter(c => {
-    const matchStatus = statusFilter === 'ALL' || c.status === statusFilter;
-    const matchUrgency = urgencyFilter === 'ALL' || c.urgency === urgencyFilter;
-    return matchStatus && matchUrgency;
-  });
+  const filtered = localComplaints
+    .filter(c => {
+      const matchStatus = statusFilter === 'ALL' || c.status === statusFilter;
+      const matchUrgency = urgencyFilter === 'ALL' || c.urgency === urgencyFilter;
+      return matchStatus && matchUrgency;
+    })
+    .sort((a, b) => {
+      const timeA = new Date(a.created_at || 0).getTime();
+      const timeB = new Date(b.created_at || 0).getTime();
+      return timeA - timeB; // Increasing order time-wise (oldest first)
+    });
 
   const stats = {
     total: localComplaints.length,

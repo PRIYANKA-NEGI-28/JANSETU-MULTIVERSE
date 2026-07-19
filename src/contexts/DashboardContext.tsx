@@ -10,6 +10,8 @@ export interface SensorAlert {
   description: string;
   area: string;
   createdAt: string;
+  device_id?: string;
+  status?: string;
 }
 
 export interface GlobalMetrics {
@@ -105,10 +107,39 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
     
     // Listen for WebSocket pushes for instant updates
     const unsubscribe = subscribe((msg) => {
-      if (['new_complaint', 'new_sensor_alert', 'sensor_resolved', 'complaint_updated'].includes(msg.type)) {
-        // We can optimistically update or just trigger a fresh fetch
-        // A fetch ensures all metrics (clusters, critical zones) stay perfectly in sync
-        fetchData();
+      if (msg.type === 'new_complaint') {
+        setComplaints(prev => [msg.data, ...prev]);
+        setGlobalMetrics(prev => ({
+          ...prev,
+          totalComplaints: prev.totalComplaints + 1,
+          pending: prev.pending + 1
+        }));
+      } else if (msg.type === 'new_sensor_alert') {
+        setSensorAlerts(prev => [msg.data, ...prev]);
+      } else if (msg.type === 'sensor_resolved') {
+        setSensorAlerts(prev => prev.filter(s => s.device_id !== msg.data.device_id));
+      } else if (msg.type === 'complaint_updated') {
+        setComplaints(prev => prev.map(c => {
+          if (c.id === msg.data.id || c.complaint_number === msg.data.id) {
+            return { ...c, status: msg.data.status };
+          }
+          return c;
+        }));
+        
+        // Update metrics based on status change
+        if (msg.data.status === 'RESOLVED') {
+          setGlobalMetrics(prev => ({
+            ...prev,
+            resolved: prev.resolved + 1,
+            pending: Math.max(0, prev.pending - 1)
+          }));
+        } else if (msg.data.status === 'ESCALATED') {
+          setGlobalMetrics(prev => ({
+            ...prev,
+            escalated: prev.escalated + 1,
+            pending: Math.max(0, prev.pending - 1)
+          }));
+        }
       }
     });
     
