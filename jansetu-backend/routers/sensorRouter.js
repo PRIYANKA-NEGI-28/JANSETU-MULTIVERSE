@@ -67,7 +67,7 @@ router.post('/', catchAsync(async (req, res) => {
       lat: req.body.lat !== undefined ? parseFloat(req.body.lat) : FALLBACK_PROFILE.lat,
       lng: req.body.lng !== undefined ? parseFloat(req.body.lng) : FALLBACK_PROFILE.lng,
       ward: 'Sector 135',
-      department: 'Municipal Corporation / General Administration'
+      department: 'Municipal Corporation - General Administration'
     };
     
     // Automatically file a persistent complaint for the maintenance team
@@ -98,7 +98,7 @@ router.post('/', catchAsync(async (req, res) => {
       // The graph.js functions catch their own Neo4j errors and return mock data.
       // Therefore, this try block will never throw a Neo4j error, meaning the outer catch is never hit.
       // We must explicitly save to SQLite here for redundancy!
-      const sensorData = result.records[0]?.get('a').properties || {
+      const rawProperties = result.records[0]?.get('a').properties || {
         id: 'SENS-' + Date.now(),
         device_id,
         type: type || 'UNKNOWN',
@@ -112,6 +112,9 @@ router.post('/', catchAsync(async (req, res) => {
         area: location.ward,
         createdAt: new Date().toISOString()
       };
+      
+      const { sanitizeRecordDates } = require('../db/dateSanitizer');
+      const sensorData = sanitizeRecordDates(rawProperties);
       
       // Save the sensor alert to SQLite fallback DB
       saveSensorAlert({
