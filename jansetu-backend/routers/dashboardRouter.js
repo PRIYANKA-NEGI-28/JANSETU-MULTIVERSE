@@ -312,4 +312,31 @@ router.patch('/complaint/:id', catchAsync(async (req, res) => {
     });
 }));
 
+// GET /api/dashboard/clear - Wipe both SQLite and Neo4j databases completely
+router.get('/clear', catchAsync(async (req, res) => {
+    const path = require('path');
+    const fs = require('fs');
+    
+    // 1. Wipe SQLite
+    const sqlitePath = path.join(__dirname, '..', 'db', 'store.sqlite');
+    try {
+      if (fs.existsSync(sqlitePath)) {
+        fs.unlinkSync(sqlitePath);
+        console.log('Successfully deleted SQLite database file via HTTP endpoint.');
+      }
+    } catch (err) {
+      console.error('Error deleting SQLite file via HTTP endpoint:', err);
+    }
+
+    // 2. Wipe Neo4j
+    try {
+      await runQuery('MATCH (n) DETACH DELETE n');
+      console.log('Successfully deleted all Neo4j data via HTTP endpoint.');
+    } catch (err) {
+      console.error('Error deleting Neo4j data via HTTP endpoint:', err);
+    }
+
+    res.json({ success: true, message: 'All local databases have been wiped successfully.' });
+}));
+
 module.exports = router;
