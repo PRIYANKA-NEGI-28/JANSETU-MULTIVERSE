@@ -39,7 +39,7 @@ router.post('/', catchAsync(async (req, res) => {
     return res.status(400).json({ success: false, error: 'Missing device_id or status' });
   }
 
-  // ━━━━━━━━━━━━━━━ FAULT STATUS ━━━━━━━━━━━━━━━
+  // ONLY PROCESS FAULT STATUS
   if (status === 'FAULT') {
     const location = {
       lat: req.body.lat !== undefined ? parseFloat(req.body.lat) : FALLBACK_PROFILE.lat,
@@ -48,47 +48,12 @@ router.post('/', catchAsync(async (req, res) => {
       department: FALLBACK_PROFILE.department
     };
 
-    // ── Check for existing active IoT complaint for this device ──
-    const complaints = await getAllComplaints();
-    const existingComplaint = complaints.find(c => c.device_id === device_id && c.status !== 'RESOLVED');
-
-    if (existingComplaint) {
-      const newSimilarCount = (existingComplaint.similar_count || 1) + 1;
-      console.log(`Duplicate IoT fault detected for ${device_id}. Incrementing similar_count to x${newSimilarCount}.`);
-
-      await updateComplaint(existingComplaint.id, { similar_count: newSimilarCount });
-      broadcast('complaint_updated', { id: existingComplaint.id, status: 'PENDING', similar_count: newSimilarCount });
-
-      const sensorData = {
-        id: 'SENS-DUP-' + Date.now(),
-        device_id,
-        type,
-        status: 'FAULT',
-        lat: location.lat,
-        lng: location.lng,
-        ward: location.ward,
-        department: location.department,
-        description: `Duplicate fault from ${device_id} (Count: x${newSimilarCount})`,
-        severity: 'HIGH',
-        area: location.ward,
-        createdAt: new Date().toISOString()
-      };
-      await recordSensorFault(sensorData);
-      broadcast('new_sensor_alert', sensorData);
-
-      return res.status(200).json({
-        success: true,
-        message: `Duplicate fault registered. Count incremented to x${newSimilarCount}`,
-        data: sensorData
-      });
-    }
-
-    // ── FIRST TIME FAULT: Create NEW complaint and sensor alert ──
+    // Create NEW complaint and sensor alert every single time
     const complaint_number = `IOT-CMP-${Date.now()}`;
     
     const complaintData = await createComplaint({
       complaint_number,
-      citizen_name: 'IoT',
+      citizen_name: 'IoT Node ' + device_id,
       citizen_phone: '',
       raw_text: `Automated fault alert from ${device_id}`,
       language: 'en',
@@ -103,13 +68,13 @@ router.post('/', catchAsync(async (req, res) => {
       urgency: 'HIGH',
       status: 'PENDING',
       similar_count: 1,
-      device_id: device_id // Store device ID to easily find it later
+      device_id: device_id
     });
 
     broadcast('new_complaint', complaintData);
 
     const sensorData = {
-      id: 'mock-' + Date.now(),
+      id: 'sens-' + Date.now() + Math.floor(Math.random()*1000),
       device_id,
       type,
       status: 'FAULT',
@@ -122,6 +87,7 @@ router.post('/', catchAsync(async (req, res) => {
       area: location.ward,
       createdAt: new Date().toISOString()
     };
+    
     await recordSensorFault(sensorData);
     broadcast('new_sensor_alert', sensorData);
 
@@ -140,32 +106,8 @@ router.post('/', catchAsync(async (req, res) => {
     });
   }
 
-  // ━━━━━━━━━━━━━━━ RESOLVED STATUS ━━━━━━━━━━━━━━━
-  if (status === 'RESOLVED') {
-    await resolveSensorFault(device_id);
-    broadcast('sensor_resolved', { device_id });
-
-    // Mark the active IoT complaint as RESOLVED
-    const complaints = await getAllComplaints();
-    const existingComplaint = complaints.find(c => c.device_id === device_id && c.status !== 'RESOLVED');
-    
-    let resolvedComplaintId = null;
-    if (existingComplaint) {
-      await updateComplaint(existingComplaint.id, { status: 'RESOLVED' });
-      broadcast('complaint_updated', { id: existingComplaint.id, status: 'RESOLVED' });
-      resolvedComplaintId = existingComplaint.id;
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: 'Fault resolved. Sensor alert and complaint marked as RESOLVED.',
-      device_id,
-      resolvedComplaintId
-    });
-  }
-
-  // Fallback for unknown status
-  return res.status(400).json({ success: false, error: 'Unknown status provided' });
+  // If status is anything else (like RESOLVED), do absolutely nothing, just acknowledge it.
+  return res.status(200).json({ success: true, message: 'Status ignored per configuration.' });
 }));
 
 module.exports = router;
