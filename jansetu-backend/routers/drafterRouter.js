@@ -5,17 +5,9 @@ const path = require('path');
 const { saveRtiDraft } = require('../db/sqlite');
 const crypto = require('crypto');
 
-<<<<<<< HEAD
-const catchAsync = require('../utils/catchAsync');
-
-// POST /api/drafter - Spawns NPU child process for local LLM inference
-router.post('/', catchAsync(async (req, res) => {
-  const { authorityType, applicantDetails, informationRequired } = req.body;
-=======
 // POST /api/drafter - Spawns Python process for formal statutory RTI generation
 router.post('/', (req, res) => {
   const form = req.body;
->>>>>>> c0f8cb1 (minor)
   
   if (!form || !form.authorityName) {
     return res.status(400).json({ success: false, error: 'Form data is missing required fields' });
@@ -72,6 +64,6 @@ router.post('/', (req, res) => {
       res.status(200).json({ success: true, draftText: output.trim(), id });
     }
   });
-}));
+});
 
 module.exports = router;
