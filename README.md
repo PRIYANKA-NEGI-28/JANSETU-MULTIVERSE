@@ -135,7 +135,7 @@ VITE_BACKEND_URL=https://jansetu-multiverse.onrender.com
 
 ## Future Improvements
 
-* Integrate production NPU hardware acceleration for local LLM execution.
+* Automated Detection of Fire, Water Levels, and Environmental Hazards.
 * Enable offline-first local database synchronization for low-connectivity regions.
 * Expand multilingual voice-to-text support to cover all 22 scheduled Indian languages.
 
