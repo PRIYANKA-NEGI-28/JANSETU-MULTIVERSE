@@ -1,13 +1,10 @@
-import { SHARED_PACKAGE_INFO, type SharedPackageMeta } from '@jansetu/shared';
-
-export interface MobileAppMeta {
-  readonly name: '@jansetu/mobile';
-  readonly version: '1.0.0';
-  readonly shared: SharedPackageMeta;
-}
-
-export const MOBILE_APP_INFO: MobileAppMeta = {
-  name: '@jansetu/mobile',
-  version: '1.0.0',
-  shared: SHARED_PACKAGE_INFO,
-};
+export * from './contexts/AuthContext';
+export * from './contexts/LanguageContext';
+export { authClient } from './lib/auth-client';
+export * from './lib/api-client';
+export * from './lib/locations';
+export * from './lib/aiAnalyzer';
+export * from './lib/audioRecorder';
+export * from './lib/imageCompressor';
+export * from './lib/locationService';
+export * from './offline';

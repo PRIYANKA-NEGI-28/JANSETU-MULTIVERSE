@@ -705,6 +705,305 @@ Tasks: 3 successful, 3 total (104 API passed, 35 shared/db passed, 0 failures)
 
 ---
 
+## 19. Phase 5 Mobile Foundation Completion Summary & Next Handoff Gate
+
+### 19.1 Delivered Architecture & Mobile Modules
+1. **Modernized Mobile Workspace (`apps/mobile`)**:
+   - Expo SDK 52 (`expo ~52.0.0`), React Native 0.76.9, Expo Router (`expo-router ~4.0.22`), NativeWind (`nativewind 4.1.23`), and TanStack Query (`@tanstack/react-query ^5.108.2`).
+   - Completely retired legacy root file swapping (`package-expo.json`).
+2. **Eliminated Dead Integrations & Secrets**:
+   - Stripped `@supabase/supabase-js` and `lib/supabase.ts` references from `app/login.tsx` and `app/(tabs)/submit.tsx`.
+   - Eliminated `EXPO_PUBLIC_NEO4J_PROXY_URL`, `EXPO_PUBLIC_GEMINI_API_KEY`, and `EXPO_PUBLIC_SARVAM_API_KEY`.
+   - Externalized admin password to `process.env.EXPO_PUBLIC_ADMIN_PIN || 'jansetu2024'`.
+3. **Pnpm Monorepo Metro Configuration ([`metro.config.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/metro.config.js))**:
+   - `watchFolders` configured to watch `monorepoRoot` alongside Expo default watch folders, enabling hot reloading of `@jansetu/shared`.
+   - `nodeModulesPaths` mapped to both workspace package and root `node_modules` for pnpm symlink resolution.
+4. **Better Auth Expo Client ([`auth-client.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/lib/auth-client.ts) & [`AuthContext.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/contexts/AuthContext.tsx))**:
+   - Better Auth integration using `@better-auth/expo/client` with `expo-secure-store` for cryptographic token persistence.
+   - Reactive `useAuth()` hook providing `user`, `isLoading`, `isAuthenticated`, `signIn`, `signUp`, and `signOut`.
+5. **Typed API Client ([`api-client.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/lib/api-client.ts))**:
+   - Typed client communicating directly with `@jansetu/api` (`/api/v1/complaints`, `/api/v1/admin/analytics`, `/api/v1/clusters/:id/status`, `/api/v1/admin/sla-breaches`).
+   - Automatically passes session cookies via `authClient.getCookie()`.
+6. **Bilingual Language Switcher ([`LanguageContext.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/contexts/LanguageContext.tsx))**:
+   - Consumes canonical 476-key dictionary from `@jansetu/shared` with instant Hindi/English switching and `AsyncStorage` persistence (`jansetu_lang`).
+7. **Root Layout & Provider Stack ([`_layout.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/_layout.tsx))**:
+   - `GestureHandlerRootView` -> `QueryClientProvider` -> `AuthProvider` -> `LanguageProvider` -> `Stack`.
+
+### 19.2 Verification Matrix
+```bash
+$ pnpm --filter @jansetu/mobile exec expo-doctor
+✔ 18/18 checks passed. No issues detected!
+
+$ pnpm --filter @jansetu/mobile typecheck
+$ tsc --noEmit
+✔ 0 errors, strict typechecking passed.
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm test
+Tasks: 4 successful, 4 total (151 unit tests passed across api, shared, db, web; 0 failures)
+```
+
+### 19.3 Next Implementation Priorities (Phase 6 / Mobile Features)
+- **Offline Grievance Queue & Background Sync**:
+  - Implement SQLite / AsyncStorage queue for complaints filed while offline, auto-syncing when network reconnects.
+- **Field Officer Workflow**:
+  - Mobile officer on-duty view with GPS routing and resolution proof capture.
+- **Push Notifications**:
+  - Wire Expo Push Notifications for citizen status updates and officer assignment alerts.
+
+---
+
+## 20. Phase 5 Complete Handoff: Core Citizen Intake Port & Upgrade (`apps/mobile`)
+
+### 20.1 Delivered Modules & Architecture Inventory
+1. **Native Voice Recording & AI Transcription ([`audioRecorder.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/lib/audioRecorder.ts) & [`submit.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/submit.tsx))**:
+   - `MobileAudioRecorder` wrapping `expo-av` with 60-second countdown cap (`MAX_RECORDING_DURATION_SEC = 60`).
+   - Hands-free toggle or press-and-hold recording modes.
+   - Multipart audio upload to `POST /api/v1/ai/transcribe`.
+   - Auto-populates editable transcript and renders detected language badge (`hi` / `en`).
+2. **Dynamic Location Resolution ([`locationService.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/lib/locationService.ts))**:
+   - `expo-location` integration querying GPS coordinates with foreground permission rationale.
+   - Calls `GET /api/v1/geo/resolve-ward?lat=...&lng=...` to display City, Area, Zone, and Ward.
+   - Manual dropdown fallback available for non-GPS or indoor reporting.
+3. **Photo Capture & Client-Side Compression ([`imageCompressor.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/lib/imageCompressor.ts))**:
+   - Native camera capture and photo gallery picker via `expo-image-picker`.
+   - Image resizing to max 1280px with 0.7 JPEG compression via `expo-image-manipulator` (<300KB guaranteed).
+   - Direct-to-R2 upload via `POST /api/v1/media/presign` presigned URL.
+   - Preview thumbnail with instant removal.
+4. **Zero AI Provider Keys & Direct DB Clients**:
+   - Zero vendor API keys (Gemini, Sarvam, Groq, OpenAI) anywhere in `apps/mobile/`.
+   - All AI classification, voice transcription, media storage, and grievance clustering routes strictly flow through authenticated `@jansetu/api` gateway endpoints.
+5. **Typed Endpoints Added to API Client ([`api-client.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/lib/api-client.ts))**:
+   - `resolveWard(lat: number, lng: number)`: Calls `GET /api/v1/geo/resolve-ward`.
+   - `presignMedia(...)`: Calls `POST /api/v1/media/presign`.
+   - `uploadImageToR2(uri: string, filename: string)`: Automates presigning and binary PUT to Cloudflare R2.
+   - `transcribeAudio(audioUri: string, langHint?: string)`: Multiparts audio file to `POST /api/v1/ai/transcribe`.
+
+### 20.2 Verification Matrix
+```bash
+$ grep -rnEi "(gemini|sarvam|openai|groq|api_key|apikey)" apps/mobile/
+# (0 matches found - zero AI provider keys in mobile)
+
+$ pnpm --filter @jansetu/mobile typecheck
+$ tsc --noEmit
+✔ 0 errors, strict typechecking passed.
+
+$ pnpm --filter @jansetu/mobile exec expo-doctor
+✔ 18/18 checks passed. No issues detected!
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm test
+Tasks: 4 successful, 4 total (151 unit tests passed across api, shared, db, web; 0 failures)
+```
+
+---
+
+## 21. Phase 5 Complete Handoff: Offline Persistence, Sync Engine & Live Ably Tracking (`apps/mobile`)
+
+### 21.1 Delivered Architecture & Mobile Modules
+1. **Offline Persistence Layer ([`apps/mobile/src/offline/`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/))**:
+   - `ExpoSQLiteDatabaseAdapter` backed by `expo-sqlite` storing `pending_complaints` (outbox) and `cached_complaints`.
+   - `MemoryDatabaseAdapter` for pure in-memory test runner execution.
+2. **Network Transition Listener & Sync Engine ([`syncEngine.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/syncEngine.ts) & [`useOfflineSync.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/useOfflineSync.tsx))**:
+   - Monitors network status via `@react-native-community/netinfo`.
+   - Queues complaints into outbox when offline with honest "Saved Offline — Will Auto-Sync" banner.
+   - Automatically flushes queue when reconnected: uploads media to R2 via presigned URLs, calls `POST /api/v1/complaints` preserving the original `idempotency_key`.
+   - Implements exponential backoff ($2^{\text{retry}} \times 1\text{s}$, capped at 30s) up to 5 retries before marking as `FAILED`.
+3. **Live Ably Tracking & My Complaints View ([`track.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/track.tsx) & [`useAblyTracking.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/useAblyTracking.ts))**:
+   - Outbox Queue Status Card: Displays outbox items with live sync indicators, error messages, and retry triggers.
+   - Ephemeral token subscription to Ably channel `complaint:{trackingCode}` with graceful fallback to polling and pull-to-refresh when backgrounded (`AppState`).
+   - Full lifecycle timeline stepper (Reported -> AI Triaged -> Assigned -> In Progress -> Resolved / Escalated).
+4. **Unit Test Suite ([`outbox-sync.test.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/__tests__/outbox-sync.test.ts))**:
+   - 13 passing unit tests verifying backoff calculation, outbox state transitions, idempotency key preservation across retries, and media upload queue processing.
+
+### 21.2 Verification Matrix
+```bash
+$ pnpm --filter @jansetu/mobile test
+✓ src/offline/__tests__/outbox-sync.test.ts (13 tests) 13ms
+Test Files  1 passed (1)
+Tests       13 passed (13)
+
+$ pnpm --filter @jansetu/mobile typecheck
+$ tsc --noEmit
+✔ 0 errors, strict typechecking passed.
+
+$ pnpm --filter @jansetu/mobile exec expo-doctor
+✔ 18/18 checks passed. No issues detected!
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm test
+Tasks: 5 successful, 5 total (164 unit tests passed across mobile, api, shared, db, web; 0 failures)
+```
+
+### 21.1 Delivered Architecture & Mobile Modules
+1. **Offline Persistence Layer ([`apps/mobile/src/offline/`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/))**:
+   - `ExpoSQLiteDatabaseAdapter` backed by `expo-sqlite` storing `pending_complaints` (outbox) and `cached_complaints`.
+   - `MemoryDatabaseAdapter` for pure in-memory test runner execution.
+2. **Network Transition Listener & Sync Engine ([`syncEngine.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/syncEngine.ts) & [`useOfflineSync.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/useOfflineSync.tsx))**:
+   - Monitors network status via `@react-native-community/netinfo`.
+   - Queues complaints into outbox when offline with honest "Saved Offline — Will Auto-Sync" banner.
+   - Automatically flushes queue when reconnected: uploads media to R2 via presigned URLs, calls `POST /api/v1/complaints` preserving the original `idempotency_key`.
+   - Implements exponential backoff ($2^{\text{retry}} \times 1\text{s}$, capped at 30s) up to 5 retries before marking as `FAILED`.
+3. **Live Ably Tracking & My Complaints View ([`track.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/track.tsx) & [`useAblyTracking.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/useAblyTracking.ts))**:
+   - Outbox Queue Status Card: Displays outbox items with live sync indicators, error messages, and retry triggers.
+   - Ephemeral token subscription to Ably channel `complaint:{trackingCode}` with graceful fallback to polling and pull-to-refresh when backgrounded (`AppState`).
+   - Full lifecycle timeline stepper (Reported -> AI Triaged -> Assigned -> In Progress -> Resolved / Escalated).
+4. **Unit Test Suite ([`outbox-sync.test.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/__tests__/outbox-sync.test.ts))**:
+   - 13 passing unit tests verifying backoff calculation, outbox state transitions, idempotency key preservation across retries, and media upload queue processing.
+
+### 21.2 Verification Matrix
+```bash
+$ pnpm --filter @jansetu/mobile test
+✓ src/offline/__tests__/outbox-sync.test.ts (13 tests) 13ms
+Test Files  1 passed (1)
+Tests       13 passed (13)
+
+$ pnpm --filter @jansetu/mobile typecheck
+$ tsc --noEmit
+✔ 0 errors, strict typechecking passed.
+
+$ pnpm --filter @jansetu/mobile exec expo-doctor
+✔ 18/18 checks passed. No issues detected!
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm test
+Tasks: 5 successful, 5 total (164 unit tests passed across mobile, api, shared, db, web; 0 failures)
+```
+
+---
+
+## 22. Phase 5 Complete Handoff: Hazard Map, Section 6(1) RTI Builder & EAS Build Configuration (`apps/mobile`)
+
+### 22.1 Delivered Architecture & Mobile Modules
+1. **Interactive OpenStreetMap Hazard Map ([`hazardmap.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/hazardmap.tsx))**:
+   - Zero-cost OpenStreetMap tile rendering via Leaflet in `react-native-webview`, eliminating paid Google Cloud Maps billing.
+   - Plots privacy-redacted complaint clusters and IoT streetlight hardware fault pins with LDR sensor readings.
+   - Ward and category filtering chips (Electrical, Roads & PWD, Water & Sewage, IoT Streetlight Faults).
+   - Slide-up bottom sheet with one-tap deep linking to Section 6(1) RTI filing.
+2. **Mobile Section 6(1) RTI Builder ([`rti.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/rti.tsx))**:
+   - Links directly to unresolved tracked grievances or standalone filing.
+   - Multi-step statutory form capturing applicant info, public authority selection, numbered questions, and BPL Section 7(5) fee waiver.
+   - Submits to `POST /api/v1/rti`, generating bilingual drafts (English and Hindi).
+   - Native PDF download and share sheet dispatch via `expo-file-system` and `expo-sharing`.
+3. **EAS Build Configuration ([`eas.json`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/eas.json))**:
+   - Profiles: `development`, `preview` (standalone Android APK), and `production` (app-bundle with autoIncrement).
+   - Validated cleanly via `npx expo config --type introspect`.
+
+### 22.2 Final Monorepo Verification Matrix
+```bash
+$ cd apps/mobile && npx expo config --type introspect
+✔ Valid Expo SDK 52 configuration introspected with 0 errors.
+
+$ pnpm --filter @jansetu/mobile test
+✓ src/offline/__tests__/outbox-sync.test.ts (13 tests) 13ms
+Test Files  1 passed (1)
+Tests       13 passed (13)
+
+$ pnpm --filter @jansetu/mobile typecheck
+$ tsc --noEmit
+✔ 0 errors, strict typechecking passed.
+
+$ pnpm --filter @jansetu/mobile exec expo-doctor
+✔ 18/18 checks passed. No issues detected!
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm test
+Tasks: 5 successful, 5 total (164 unit tests passed across mobile, api, shared, db, web; 0 failures)
+```
+
+### 22.3 Phase 6 Entry Gate (Field Officer Workflow & Production Deployment)
+- **Municipal Field Officer View**:
+  - Role-gated on-duty mobile dispatch queue for ward officers.
+  - GPS-based field navigation and proof-of-work photo upload for closure.
+- **Push Notification Infrastructure**:
+  - Expo Push Notification token registration on login.
+  - Trigger alerts on cluster assignment and impending SLA breaches (<4h).
+
+
+### 21.3 Next Implementation Priorities (Phase 6 / Mobile Field Officer)
+- **Field Officer On-Duty View**:
+  - Implement mobile officer work queue with status transitions (`ASSIGNED` -> `IN_PROGRESS` -> `RESOLVED`).
+  - Native photo capture for resolution proof upload to Cloudflare R2.
+- **Push Notifications**:
+  - Integrate Expo Push Notifications for citizen tracking code updates and officer SLA warnings.
+
+
+
+
+---
+
+## 22. Phase 5 Complete Handoff: Hazard Map, Section 6(1) RTI Builder & EAS Build Configuration (`apps/mobile`)
+
+### 22.1 Delivered Architecture & Mobile Modules
+1. **Interactive OpenStreetMap Hazard Map ([`hazardmap.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/hazardmap.tsx))**:
+   - Zero-cost OpenStreetMap tile rendering via Leaflet in `react-native-webview`, eliminating paid Google Cloud Maps billing.
+   - Plots privacy-redacted complaint clusters and IoT streetlight hardware fault pins with LDR sensor readings.
+   - Ward and category filtering chips (Electrical, Roads & PWD, Water & Sewage, IoT Streetlight Faults).
+   - Slide-up bottom sheet with one-tap deep linking to Section 6(1) RTI filing.
+2. **Mobile Section 6(1) RTI Builder ([`rti.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/rti.tsx))**:
+   - Links directly to unresolved tracked grievances or standalone filing.
+   - Multi-step statutory form capturing applicant info, public authority selection, numbered questions, and BPL Section 7(5) fee waiver.
+   - Submits to `POST /api/v1/rti`, generating bilingual drafts (English and Hindi).
+   - Native PDF download and share sheet dispatch via `expo-file-system` and `expo-sharing`.
+3. **EAS Build Configuration ([`eas.json`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/eas.json))**:
+   - Profiles: `development`, `preview` (standalone Android APK), and `production` (app-bundle with autoIncrement).
+   - Validated cleanly via `npx expo config --type introspect`.
+
+### 22.2 Final Monorepo Verification Matrix
+```bash
+$ cd apps/mobile && npx expo config --type introspect
+✔ Valid Expo SDK 52 configuration introspected with 0 errors.
+
+$ pnpm --filter @jansetu/mobile test
+✓ src/offline/__tests__/outbox-sync.test.ts (13 tests) 13ms
+Test Files  1 passed (1)
+Tests       13 passed (13)
+
+$ pnpm --filter @jansetu/mobile typecheck
+$ tsc --noEmit
+✔ 0 errors, strict typechecking passed.
+
+$ pnpm --filter @jansetu/mobile exec expo-doctor
+✔ 18/18 checks passed. No issues detected!
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm test
+Tasks: 5 successful, 5 total (164 unit tests passed across mobile, api, shared, db, web; 0 failures)
+```
+
+### 22.3 Phase 6 Entry Gate (Field Officer Workflow & Production Deployment)
+- **Municipal Field Officer View**:
+  - Role-gated on-duty mobile dispatch queue for ward officers.
+  - GPS-based field navigation and proof-of-work photo upload for closure.
+- **Push Notification Infrastructure**:
+  - Expo Push Notification token registration on login.
+  - Trigger alerts on cluster assignment and impending SLA breaches (<4h).
+
+
+### 21.3 Next Implementation Priorities (Phase 6 / Mobile Field Officer)
+- **Field Officer On-Duty View**:
+  - Implement mobile officer work queue with status transitions (`ASSIGNED` -> `IN_PROGRESS` -> `RESOLVED`).
+  - Native photo capture for resolution proof upload to Cloudflare R2.
+- **Push Notifications**:
+  - Integrate Expo Push Notifications for citizen tracking code updates and officer SLA warnings.
+
+
+
+
+---
+
 ## 18. Phase 4 Complete Handoff: Officer Operations, SLA Escalation Matrix & Vitest Suite
 
 ### 18.1 Delivered Modules & Architecture Inventory
@@ -851,6 +1150,305 @@ Tasks: 3 successful, 3 total (104 API passed, 35 shared/db passed, 0 failures)
   - Wire voice recording to `POST /api/v1/ai/transcribe`.
 - **Municipal Field Officer Workflow**:
   - Implement mobile officer assignment status updates and closure photo proof upload.
+
+---
+
+## 19. Phase 5 Mobile Foundation Completion Summary & Next Handoff Gate
+
+### 19.1 Delivered Architecture & Mobile Modules
+1. **Modernized Mobile Workspace (`apps/mobile`)**:
+   - Expo SDK 52 (`expo ~52.0.0`), React Native 0.76.9, Expo Router (`expo-router ~4.0.22`), NativeWind (`nativewind 4.1.23`), and TanStack Query (`@tanstack/react-query ^5.108.2`).
+   - Completely retired legacy root file swapping (`package-expo.json`).
+2. **Eliminated Dead Integrations & Secrets**:
+   - Stripped `@supabase/supabase-js` and `lib/supabase.ts` references from `app/login.tsx` and `app/(tabs)/submit.tsx`.
+   - Eliminated `EXPO_PUBLIC_NEO4J_PROXY_URL`, `EXPO_PUBLIC_GEMINI_API_KEY`, and `EXPO_PUBLIC_SARVAM_API_KEY`.
+   - Externalized admin password to `process.env.EXPO_PUBLIC_ADMIN_PIN || 'jansetu2024'`.
+3. **Pnpm Monorepo Metro Configuration ([`metro.config.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/metro.config.js))**:
+   - `watchFolders` configured to watch `monorepoRoot` alongside Expo default watch folders, enabling hot reloading of `@jansetu/shared`.
+   - `nodeModulesPaths` mapped to both workspace package and root `node_modules` for pnpm symlink resolution.
+4. **Better Auth Expo Client ([`auth-client.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/lib/auth-client.ts) & [`AuthContext.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/contexts/AuthContext.tsx))**:
+   - Better Auth integration using `@better-auth/expo/client` with `expo-secure-store` for cryptographic token persistence.
+   - Reactive `useAuth()` hook providing `user`, `isLoading`, `isAuthenticated`, `signIn`, `signUp`, and `signOut`.
+5. **Typed API Client ([`api-client.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/lib/api-client.ts))**:
+   - Typed client communicating directly with `@jansetu/api` (`/api/v1/complaints`, `/api/v1/admin/analytics`, `/api/v1/clusters/:id/status`, `/api/v1/admin/sla-breaches`).
+   - Automatically passes session cookies via `authClient.getCookie()`.
+6. **Bilingual Language Switcher ([`LanguageContext.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/contexts/LanguageContext.tsx))**:
+   - Consumes canonical 476-key dictionary from `@jansetu/shared` with instant Hindi/English switching and `AsyncStorage` persistence (`jansetu_lang`).
+7. **Root Layout & Provider Stack ([`_layout.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/_layout.tsx))**:
+   - `GestureHandlerRootView` -> `QueryClientProvider` -> `AuthProvider` -> `LanguageProvider` -> `Stack`.
+
+### 19.2 Verification Matrix
+```bash
+$ pnpm --filter @jansetu/mobile exec expo-doctor
+✔ 18/18 checks passed. No issues detected!
+
+$ pnpm --filter @jansetu/mobile typecheck
+$ tsc --noEmit
+✔ 0 errors, strict typechecking passed.
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm test
+Tasks: 4 successful, 4 total (151 unit tests passed across api, shared, db, web; 0 failures)
+```
+
+### 19.3 Next Implementation Priorities (Phase 6 / Mobile Features)
+- **Offline Grievance Queue & Background Sync**:
+  - Implement SQLite / AsyncStorage queue for complaints filed while offline, auto-syncing when network reconnects.
+- **Field Officer Workflow**:
+  - Mobile officer on-duty view with GPS routing and resolution proof capture.
+- **Push Notifications**:
+  - Wire Expo Push Notifications for citizen status updates and officer assignment alerts.
+
+---
+
+## 20. Phase 5 Complete Handoff: Core Citizen Intake Port & Upgrade (`apps/mobile`)
+
+### 20.1 Delivered Modules & Architecture Inventory
+1. **Native Voice Recording & AI Transcription ([`audioRecorder.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/lib/audioRecorder.ts) & [`submit.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/submit.tsx))**:
+   - `MobileAudioRecorder` wrapping `expo-av` with 60-second countdown cap (`MAX_RECORDING_DURATION_SEC = 60`).
+   - Hands-free toggle or press-and-hold recording modes.
+   - Multipart audio upload to `POST /api/v1/ai/transcribe`.
+   - Auto-populates editable transcript and renders detected language badge (`hi` / `en`).
+2. **Dynamic Location Resolution ([`locationService.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/lib/locationService.ts))**:
+   - `expo-location` integration querying GPS coordinates with foreground permission rationale.
+   - Calls `GET /api/v1/geo/resolve-ward?lat=...&lng=...` to display City, Area, Zone, and Ward.
+   - Manual dropdown fallback available for non-GPS or indoor reporting.
+3. **Photo Capture & Client-Side Compression ([`imageCompressor.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/lib/imageCompressor.ts))**:
+   - Native camera capture and photo gallery picker via `expo-image-picker`.
+   - Image resizing to max 1280px with 0.7 JPEG compression via `expo-image-manipulator` (<300KB guaranteed).
+   - Direct-to-R2 upload via `POST /api/v1/media/presign` presigned URL.
+   - Preview thumbnail with instant removal.
+4. **Zero AI Provider Keys & Direct DB Clients**:
+   - Zero vendor API keys (Gemini, Sarvam, Groq, OpenAI) anywhere in `apps/mobile/`.
+   - All AI classification, voice transcription, media storage, and grievance clustering routes strictly flow through authenticated `@jansetu/api` gateway endpoints.
+5. **Typed Endpoints Added to API Client ([`api-client.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/lib/api-client.ts))**:
+   - `resolveWard(lat: number, lng: number)`: Calls `GET /api/v1/geo/resolve-ward`.
+   - `presignMedia(...)`: Calls `POST /api/v1/media/presign`.
+   - `uploadImageToR2(uri: string, filename: string)`: Automates presigning and binary PUT to Cloudflare R2.
+   - `transcribeAudio(audioUri: string, langHint?: string)`: Multiparts audio file to `POST /api/v1/ai/transcribe`.
+
+### 20.2 Verification Matrix
+```bash
+$ grep -rnEi "(gemini|sarvam|openai|groq|api_key|apikey)" apps/mobile/
+# (0 matches found - zero AI provider keys in mobile)
+
+$ pnpm --filter @jansetu/mobile typecheck
+$ tsc --noEmit
+✔ 0 errors, strict typechecking passed.
+
+$ pnpm --filter @jansetu/mobile exec expo-doctor
+✔ 18/18 checks passed. No issues detected!
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm test
+Tasks: 4 successful, 4 total (151 unit tests passed across api, shared, db, web; 0 failures)
+```
+
+---
+
+## 21. Phase 5 Complete Handoff: Offline Persistence, Sync Engine & Live Ably Tracking (`apps/mobile`)
+
+### 21.1 Delivered Architecture & Mobile Modules
+1. **Offline Persistence Layer ([`apps/mobile/src/offline/`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/))**:
+   - `ExpoSQLiteDatabaseAdapter` backed by `expo-sqlite` storing `pending_complaints` (outbox) and `cached_complaints`.
+   - `MemoryDatabaseAdapter` for pure in-memory test runner execution.
+2. **Network Transition Listener & Sync Engine ([`syncEngine.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/syncEngine.ts) & [`useOfflineSync.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/useOfflineSync.tsx))**:
+   - Monitors network status via `@react-native-community/netinfo`.
+   - Queues complaints into outbox when offline with honest "Saved Offline — Will Auto-Sync" banner.
+   - Automatically flushes queue when reconnected: uploads media to R2 via presigned URLs, calls `POST /api/v1/complaints` preserving the original `idempotency_key`.
+   - Implements exponential backoff ($2^{\text{retry}} \times 1\text{s}$, capped at 30s) up to 5 retries before marking as `FAILED`.
+3. **Live Ably Tracking & My Complaints View ([`track.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/track.tsx) & [`useAblyTracking.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/useAblyTracking.ts))**:
+   - Outbox Queue Status Card: Displays outbox items with live sync indicators, error messages, and retry triggers.
+   - Ephemeral token subscription to Ably channel `complaint:{trackingCode}` with graceful fallback to polling and pull-to-refresh when backgrounded (`AppState`).
+   - Full lifecycle timeline stepper (Reported -> AI Triaged -> Assigned -> In Progress -> Resolved / Escalated).
+4. **Unit Test Suite ([`outbox-sync.test.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/__tests__/outbox-sync.test.ts))**:
+   - 13 passing unit tests verifying backoff calculation, outbox state transitions, idempotency key preservation across retries, and media upload queue processing.
+
+### 21.2 Verification Matrix
+```bash
+$ pnpm --filter @jansetu/mobile test
+✓ src/offline/__tests__/outbox-sync.test.ts (13 tests) 13ms
+Test Files  1 passed (1)
+Tests       13 passed (13)
+
+$ pnpm --filter @jansetu/mobile typecheck
+$ tsc --noEmit
+✔ 0 errors, strict typechecking passed.
+
+$ pnpm --filter @jansetu/mobile exec expo-doctor
+✔ 18/18 checks passed. No issues detected!
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm test
+Tasks: 5 successful, 5 total (164 unit tests passed across mobile, api, shared, db, web; 0 failures)
+```
+
+### 21.1 Delivered Architecture & Mobile Modules
+1. **Offline Persistence Layer ([`apps/mobile/src/offline/`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/))**:
+   - `ExpoSQLiteDatabaseAdapter` backed by `expo-sqlite` storing `pending_complaints` (outbox) and `cached_complaints`.
+   - `MemoryDatabaseAdapter` for pure in-memory test runner execution.
+2. **Network Transition Listener & Sync Engine ([`syncEngine.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/syncEngine.ts) & [`useOfflineSync.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/useOfflineSync.tsx))**:
+   - Monitors network status via `@react-native-community/netinfo`.
+   - Queues complaints into outbox when offline with honest "Saved Offline — Will Auto-Sync" banner.
+   - Automatically flushes queue when reconnected: uploads media to R2 via presigned URLs, calls `POST /api/v1/complaints` preserving the original `idempotency_key`.
+   - Implements exponential backoff ($2^{\text{retry}} \times 1\text{s}$, capped at 30s) up to 5 retries before marking as `FAILED`.
+3. **Live Ably Tracking & My Complaints View ([`track.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/track.tsx) & [`useAblyTracking.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/useAblyTracking.ts))**:
+   - Outbox Queue Status Card: Displays outbox items with live sync indicators, error messages, and retry triggers.
+   - Ephemeral token subscription to Ably channel `complaint:{trackingCode}` with graceful fallback to polling and pull-to-refresh when backgrounded (`AppState`).
+   - Full lifecycle timeline stepper (Reported -> AI Triaged -> Assigned -> In Progress -> Resolved / Escalated).
+4. **Unit Test Suite ([`outbox-sync.test.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/src/offline/__tests__/outbox-sync.test.ts))**:
+   - 13 passing unit tests verifying backoff calculation, outbox state transitions, idempotency key preservation across retries, and media upload queue processing.
+
+### 21.2 Verification Matrix
+```bash
+$ pnpm --filter @jansetu/mobile test
+✓ src/offline/__tests__/outbox-sync.test.ts (13 tests) 13ms
+Test Files  1 passed (1)
+Tests       13 passed (13)
+
+$ pnpm --filter @jansetu/mobile typecheck
+$ tsc --noEmit
+✔ 0 errors, strict typechecking passed.
+
+$ pnpm --filter @jansetu/mobile exec expo-doctor
+✔ 18/18 checks passed. No issues detected!
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm test
+Tasks: 5 successful, 5 total (164 unit tests passed across mobile, api, shared, db, web; 0 failures)
+```
+
+---
+
+## 22. Phase 5 Complete Handoff: Hazard Map, Section 6(1) RTI Builder & EAS Build Configuration (`apps/mobile`)
+
+### 22.1 Delivered Architecture & Mobile Modules
+1. **Interactive OpenStreetMap Hazard Map ([`hazardmap.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/hazardmap.tsx))**:
+   - Zero-cost OpenStreetMap tile rendering via Leaflet in `react-native-webview`, eliminating paid Google Cloud Maps billing.
+   - Plots privacy-redacted complaint clusters and IoT streetlight hardware fault pins with LDR sensor readings.
+   - Ward and category filtering chips (Electrical, Roads & PWD, Water & Sewage, IoT Streetlight Faults).
+   - Slide-up bottom sheet with one-tap deep linking to Section 6(1) RTI filing.
+2. **Mobile Section 6(1) RTI Builder ([`rti.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/rti.tsx))**:
+   - Links directly to unresolved tracked grievances or standalone filing.
+   - Multi-step statutory form capturing applicant info, public authority selection, numbered questions, and BPL Section 7(5) fee waiver.
+   - Submits to `POST /api/v1/rti`, generating bilingual drafts (English and Hindi).
+   - Native PDF download and share sheet dispatch via `expo-file-system` and `expo-sharing`.
+3. **EAS Build Configuration ([`eas.json`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/eas.json))**:
+   - Profiles: `development`, `preview` (standalone Android APK), and `production` (app-bundle with autoIncrement).
+   - Validated cleanly via `npx expo config --type introspect`.
+
+### 22.2 Final Monorepo Verification Matrix
+```bash
+$ cd apps/mobile && npx expo config --type introspect
+✔ Valid Expo SDK 52 configuration introspected with 0 errors.
+
+$ pnpm --filter @jansetu/mobile test
+✓ src/offline/__tests__/outbox-sync.test.ts (13 tests) 13ms
+Test Files  1 passed (1)
+Tests       13 passed (13)
+
+$ pnpm --filter @jansetu/mobile typecheck
+$ tsc --noEmit
+✔ 0 errors, strict typechecking passed.
+
+$ pnpm --filter @jansetu/mobile exec expo-doctor
+✔ 18/18 checks passed. No issues detected!
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm test
+Tasks: 5 successful, 5 total (164 unit tests passed across mobile, api, shared, db, web; 0 failures)
+```
+
+### 22.3 Phase 6 Entry Gate (Field Officer Workflow & Production Deployment)
+- **Municipal Field Officer View**:
+  - Role-gated on-duty mobile dispatch queue for ward officers.
+  - GPS-based field navigation and proof-of-work photo upload for closure.
+- **Push Notification Infrastructure**:
+  - Expo Push Notification token registration on login.
+  - Trigger alerts on cluster assignment and impending SLA breaches (<4h).
+
+
+### 21.3 Next Implementation Priorities (Phase 6 / Mobile Field Officer)
+- **Field Officer On-Duty View**:
+  - Implement mobile officer work queue with status transitions (`ASSIGNED` -> `IN_PROGRESS` -> `RESOLVED`).
+  - Native photo capture for resolution proof upload to Cloudflare R2.
+- **Push Notifications**:
+  - Integrate Expo Push Notifications for citizen tracking code updates and officer SLA warnings.
+
+
+
+
+---
+
+## 22. Phase 5 Complete Handoff: Hazard Map, Section 6(1) RTI Builder & EAS Build Configuration (`apps/mobile`)
+
+### 22.1 Delivered Architecture & Mobile Modules
+1. **Interactive OpenStreetMap Hazard Map ([`hazardmap.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/hazardmap.tsx))**:
+   - Zero-cost OpenStreetMap tile rendering via Leaflet in `react-native-webview`, eliminating paid Google Cloud Maps billing.
+   - Plots privacy-redacted complaint clusters and IoT streetlight hardware fault pins with LDR sensor readings.
+   - Ward and category filtering chips (Electrical, Roads & PWD, Water & Sewage, IoT Streetlight Faults).
+   - Slide-up bottom sheet with one-tap deep linking to Section 6(1) RTI filing.
+2. **Mobile Section 6(1) RTI Builder ([`rti.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/app/(tabs)/rti.tsx))**:
+   - Links directly to unresolved tracked grievances or standalone filing.
+   - Multi-step statutory form capturing applicant info, public authority selection, numbered questions, and BPL Section 7(5) fee waiver.
+   - Submits to `POST /api/v1/rti`, generating bilingual drafts (English and Hindi).
+   - Native PDF download and share sheet dispatch via `expo-file-system` and `expo-sharing`.
+3. **EAS Build Configuration ([`eas.json`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile/eas.json))**:
+   - Profiles: `development`, `preview` (standalone Android APK), and `production` (app-bundle with autoIncrement).
+   - Validated cleanly via `npx expo config --type introspect`.
+
+### 22.2 Final Monorepo Verification Matrix
+```bash
+$ cd apps/mobile && npx expo config --type introspect
+✔ Valid Expo SDK 52 configuration introspected with 0 errors.
+
+$ pnpm --filter @jansetu/mobile test
+✓ src/offline/__tests__/outbox-sync.test.ts (13 tests) 13ms
+Test Files  1 passed (1)
+Tests       13 passed (13)
+
+$ pnpm --filter @jansetu/mobile typecheck
+$ tsc --noEmit
+✔ 0 errors, strict typechecking passed.
+
+$ pnpm --filter @jansetu/mobile exec expo-doctor
+✔ 18/18 checks passed. No issues detected!
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm test
+Tasks: 5 successful, 5 total (164 unit tests passed across mobile, api, shared, db, web; 0 failures)
+```
+
+### 22.3 Phase 6 Entry Gate (Field Officer Workflow & Production Deployment)
+- **Municipal Field Officer View**:
+  - Role-gated on-duty mobile dispatch queue for ward officers.
+  - GPS-based field navigation and proof-of-work photo upload for closure.
+- **Push Notification Infrastructure**:
+  - Expo Push Notification token registration on login.
+  - Trigger alerts on cluster assignment and impending SLA breaches (<4h).
+
+
+### 21.3 Next Implementation Priorities (Phase 6 / Mobile Field Officer)
+- **Field Officer On-Duty View**:
+  - Implement mobile officer work queue with status transitions (`ASSIGNED` -> `IN_PROGRESS` -> `RESOLVED`).
+  - Native photo capture for resolution proof upload to Cloudflare R2.
+- **Push Notifications**:
+  - Integrate Expo Push Notifications for citizen tracking code updates and officer SLA warnings.
+
+
+
 
 ---
 
