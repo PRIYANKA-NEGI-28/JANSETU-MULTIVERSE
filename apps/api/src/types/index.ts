@@ -11,6 +11,25 @@ export interface Bindings {
   readonly UPSTASH_REDIS_REST_TOKEN?: string;
   readonly BETTER_AUTH_SECRET?: string;
   readonly BETTER_AUTH_URL?: string;
+  readonly R2_ACCOUNT_ID?: string;
+  readonly R2_ACCESS_KEY_ID?: string;
+  readonly R2_SECRET_ACCESS_KEY?: string;
+  readonly R2_BUCKET_NAME?: string;
+  readonly R2_PUBLIC_URL?: string;
+  readonly MEDIA_BUCKET?: R2Bucket;
+  readonly GEMINI_API_KEY?: string;
+  readonly GEMINI_MODEL?: string;
+  readonly GROQ_API_KEY?: string;
+  readonly GROQ_MODEL?: string;
+  readonly GROQ_WHISPER_MODEL?: string;
+  readonly SARVAM_API_KEY?: string;
+  readonly AI_TIMEOUT_MS?: string;
+  readonly QSTASH_TOKEN?: string;
+  readonly QSTASH_CURRENT_SIGNING_KEY?: string;
+  readonly QSTASH_NEXT_SIGNING_KEY?: string;
+  readonly QSTASH_URL?: string;
+  readonly APP_URL?: string;
+  readonly ABLY_API_KEY?: string;
 }
 
 export interface AuthUser {

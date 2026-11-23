@@ -14,6 +14,7 @@ export interface ClusterEntity {
   readonly updatedAt: Date | string;
   readonly assignedOfficerId?: string | null;
   readonly internalNotes?: string | null;
+  readonly escalationLevel?: number;
 }
 
 export interface PublicClusterDto {

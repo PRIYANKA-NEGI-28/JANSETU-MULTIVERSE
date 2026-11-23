@@ -6,6 +6,7 @@ export const rtiApplications = pgTable(
   {
     id: text('id').primaryKey(),
     citizenId: text('citizen_id').references(() => users.id, { onDelete: 'set null' }),
+    clusterId: text('cluster_id'),
     applicantName: text('applicant_name').notNull(),
     fatherOrSpouseName: text('father_or_spouse_name'),
     address: text('address').notNull(),
@@ -27,6 +28,7 @@ export const rtiApplications = pgTable(
   },
   (table) => [
     index('idx_rti_citizen_created').on(table.citizenId, table.createdAt),
+    index('idx_rti_cluster').on(table.clusterId),
   ]
 );
 

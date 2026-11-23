@@ -35,8 +35,12 @@ clustersRoute.patch(
   '/:id/assign',
   requireRole('ward_officer', 'dept_head', 'admin'),
   requireWardOrDeptScope(async (c) => {
+    const clusterId = c.req.param('id');
+    if (!clusterId) {
+      return {};
+    }
     const store = getComplaintStore();
-    const cluster = await store.findClusterById(c.req.param('id'), c.get('env'));
+    const cluster = await store.findClusterById(clusterId, c.get('env'));
     return {
       wardId: cluster?.wardId,
       departmentId: cluster?.departmentId,
@@ -72,8 +76,12 @@ clustersRoute.patch(
   '/:id/status',
   requireRole('ward_officer', 'dept_head', 'admin'),
   requireWardOrDeptScope(async (c) => {
+    const clusterId = c.req.param('id');
+    if (!clusterId) {
+      return {};
+    }
     const store = getComplaintStore();
-    const cluster = await store.findClusterById(c.req.param('id'), c.get('env'));
+    const cluster = await store.findClusterById(clusterId, c.get('env'));
     return {
       wardId: cluster?.wardId,
       departmentId: cluster?.departmentId,

@@ -679,7 +679,46 @@ Implemented in [`packages/db/src/seed.ts`](file:///Users/apple/Desktop/JANSETU-M
    - `serializeComplaint(entity, user)`: Dynamic serializer dispatching Public vs Officer DTO based on caller identity (admin, assigned ward officer, dept head, or complaint author).
    - `serializeCluster(entity, user)`: Strips internal officer notes and assignments from public cluster responses.
 
-### 12.5 Verification Results
+### 12.5 Civic Complaint, Cluster, Admin, and Geo Endpoints
+1. **Complaint Intake (`POST /api/v1/complaints`) ([`src/routes/complaints.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/routes/complaints.ts))**:
+   - Enforces `idempotency_key` (client-provided or SHA-256 fallback), returning existing complaint immediately on retry.
+   - Resolves municipal ward automatically via PostGIS `ST_Contains` (with in-memory proximity fallback).
+   - Obfuscates public coordinates to a ~100m grid (`obfuscatePublicCoords`) to protect citizen privacy.
+   - Spatial clustering: checks for open cluster within 150m, matching department, and created within 7 days (`findOpenClusterNear` / PostGIS `ST_DWithin`).
+   - Cluster linking: if matching cluster exists, links complaint and increments report count; otherwise, creates new cluster with calculated `sla_due_at` from `@jansetu/shared`.
+   - Records an immutable audit log (`complaint_events`) inside a transactional store write.
+2. **Complaint Queries (`GET /api/v1/complaints` & `GET /api/v1/complaints/:trackingCode`)**:
+   - Supports filtering by `wardId`, `departmentId`, `status`, `urgency`, text search, and pagination (`page`, `limit`).
+   - Returns serialized DTOs based on caller role: public callers receive redacted coordinates and stripped PII; officers/owners receive exact coordinates and contact information.
+   - Tracking code lookup returns single complaint with full details.
+3. **Cluster Timeline & Lifecycle Mutations ([`src/routes/clusters.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/routes/clusters.ts))**:
+   - `GET /api/v1/clusters/:id/timeline`: Retrieves chronological history of status transitions and assignments.
+   - `PATCH /api/v1/clusters/:id/assign`: Assigns cluster to officer, updates all linked complaints, logs audit event, and validates municipal ward/dept scope.
+   - `PATCH /api/v1/clusters/:id/status`: Enforces strict state machine transitions (`canTransitionStatus`), rejecting illegal transitions (e.g., `PENDING` -> `RESOLVED`) with 400 Bad Request, and logs audit events.
+4. **Spatial Map Clusters (`GET /api/v1/map/clusters`) ([`src/routes/map.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/routes/map.ts))**:
+   - Queries clusters within bounding box (`minLat`, `minLng`, `maxLat`, `maxLng`).
+   - Redis-cached with 60-second TTL to handle heavy map pan/zoom traffic.
+   - Serialized with privacy safeguards for public consumption.
+5. **Administrative Analytics & SLA Breaches ([`src/routes/admin.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/routes/admin.ts))**:
+   - `GET /api/v1/admin/analytics`: Computes total complaints, resolution rate, average resolution time, breakdown by department and status, and SLA compliance metrics. Restricted to `dept_head` and `admin`.
+   - `GET /api/v1/admin/sla-breaches`: Returns all active clusters past their `slaDueAt` deadline.
+6. **Reverse Geocoding & Ward Resolution (`GET /api/v1/geo/resolve-ward`) ([`src/routes/geo.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/routes/geo.ts))**:
+   - Validates coordinates and resolves ward boundary via PostGIS `ST_Contains` query.
+   - Redis-cached (`geo:reverse:{lat}:{lng}`) to optimize external/database lookups.
+   - Falls back gracefully to Delhi NCR municipal ward index when outside mapped polygons.
+
+### 12.6 Cloudflare R2 Media Storage & RTI Section 6(1) Module
+1. **Cloudflare R2 Object Storage Client ([`src/services/storage.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/services/storage.ts))**:
+   - `POST /api/v1/media/presign` ([`src/routes/media.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/routes/media.ts)): Authenticated endpoint generating short-lived presigned PUT URLs for direct object upload. Validates strict MIME allowlists (`image/webp`, `image/jpeg`, `image/png`, `audio/webm`, `audio/mp4`, `audio/wav`) and enforces hard size limits (5MB for images, 10MB for audio). Rejects invalid MIME types and oversize payloads with 400 Bad Request.
+   - `GET /api/v1/media/:key`: Serves stored objects with immutable caching headers (`Cache-Control: public, max-age=31536000, immutable`), `ETag` generation, and conditional request validation (`If-None-Match` returning 304 Not Modified).
+   - Supports direct Cloudflare Workers `R2Bucket` binding (`MEDIA_BUCKET`), AWS S3 presigner for R2 credentials, and resilient in-memory fallback for local dev and testing.
+2. **Statutory RTI Section 6(1) Module ([`src/routes/rti.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/routes/rti.ts))**:
+   - `POST /api/v1/rti`: Creates formal Form A applications compliant with Section 6(1) of the Right to Information Act, 2005. Generates dual statutory drafts in formal legal English and Hindi.
+   - Grievance Auto-Injection: When `clusterId` is provided, automatically retrieves cluster details and injects tracking code, ward, department, filing date, and SLA status (`SLA BREACHED` vs `ACTIVE / WITHIN SLA`) into statutory questions targeting file notings, inspection reports, daily progress logs, and officer accountability.
+   - `GET /api/v1/rti`: Lists filings scoped by role (citizens only see their own filings; officers/admins see all).
+   - `GET /api/v1/rti/:id/pdf`: Generates formal A4 statutory Form A PDF using `pdf-lib` (embedded Helvetica typography, formal addressee block, applicant particulars, numbered queries, BPL exemptions, and signature block) and caches it in Cloudflare R2 (`rti-pdfs/{id}.pdf`). Returns `X-Cache: MISS` on initial generation and `X-Cache: HIT` on subsequent reads.
+
+### 12.7 Verification Results
 - **`apps/api` Vitest Test Suite**:
   ```text
   $ vitest run
@@ -691,16 +730,22 @@ Implemented in [`packages/db/src/seed.ts`](file:///Users/apple/Desktop/JANSETU-M
    ✓ src/__tests__/rate-limiter.test.ts (3 tests)
    ✓ src/__tests__/auth-rbac.test.ts (13 tests)
    ✓ src/__tests__/serializers.test.ts (12 tests)
+   ✓ src/__tests__/complaints.test.ts (7 tests)
+   ✓ src/__tests__/clusters-admin-geo.test.ts (9 tests)
+   ✓ src/__tests__/media-storage.test.ts (9 tests)
+   ✓ src/__tests__/rti.test.ts (7 tests)
 
-   Test Files  8 passed (8)
-        Tests  48 passed (48)
-     Duration  1.76s
+   Test Files  12 passed (12)
+        Tests  80 passed (80)
+     Duration  2.50s
   ```
-- **Cloudflare Wrangler Dry-Run**:
+- **Cloudflare Wrangler Deployment Dry-Run**:
   ```text
   $ pnpm --filter @jansetu/api exec wrangler deploy --dry-run
-  Total Upload: 1244.50 KiB / gzip: 198.97 KiB
-  Your Worker has access to bindings: env.NODE_ENV, env.LOG_LEVEL, env.CORS_ORIGIN
+  Total Upload: 5204.33 KiB / gzip: 961.58 KiB
+  Your Worker has access to bindings:
+    env.MEDIA_BUCKET (R2 Bucket: jansetu-media)
+    env.NODE_ENV, env.LOG_LEVEL, env.CORS_ORIGIN
   --dry-run: exiting now. (Code 0)
   ```
 - **Monorepo Global Verification**:
@@ -708,5 +753,91 @@ Implemented in [`packages/db/src/seed.ts`](file:///Users/apple/Desktop/JANSETU-M
   $ pnpm typecheck && pnpm lint && pnpm test
   Tasks: 5 successful across typecheck (0 errors)
   Tasks: 5 successful across lint (0 warnings, 0 errors)
-  Tasks: 3 successful across test (83 passed, 1 skipped)
+  Tasks: 3 successful across test (115 passed, 1 skipped)
+  ```
+
+---
+
+## 13. Phase 3 AI Gateway, Async Jobs & Real-Time Implementation & Verification
+
+### 13.1 Architecture Overview
+- **Status:** Complete (November 23, 2026)
+- **Primary AI Provider:** Google Gemini 2.5 Flash (`gemini-2.5-flash`) with structured JSON output and strict `AbortController` timeout (8000ms).
+- **Secondary AI Fallback:** Groq API (`llama-3.3-70b-versatile` for text / `whisper-large-v3-turbo` for audio transcription) with JSON mode and strict `AbortController` timeout (8000ms).
+- **Speech-to-Text & Translation:** Sarvam AI (`saarika:v2` STT + `mayura:v1` translation) primary provider with automatic fallback to Groq Whisper (`whisper-large-v3-turbo`) returning bilingual transcripts (`transcript`, `detectedLang`, `translatedEn`, `translatedHi`).
+- **Multimodal Hazard Vision Verification:** Gemini 2.5 Flash vision (`verifyHazardImage`) replacing legacy local YOLO DLC/ONNX models without GPU infrastructure, returning `{ isCivicIssue, detectedHazard, severityBoost, confidence, labels }` with graceful degradation on quota or timeout.
+- **Tertiary Guaranteed Fallback:** High-precision deterministic multilingual keyword and legal rule engine (English + Hindi / Hinglish) ensuring complaint intake and statutory drafting NEVER fail.
+- **Async Job Orchestration:** Upstash QStash integration (`apps/api/src/services/queue.ts`) with cryptographic HMAC webhook signature verification (`upstash-signature` header) protecting `/api/v1/internal/jobs/*`.
+- **Real-Time Push Engine:** Ably REST integration (`apps/api/src/services/realtime.ts`) and capability-scoped token generation (`GET /api/v1/realtime/token`) strictly restricting citizen, officer, department head, and admin subscriptions.
+- **Privacy & Security Logging:** Latency, provider name, and structured fallback reasons logged with strict suppression of API tokens and citizen PII (Aadhaar, emails, phone numbers, raw complaint text).
+
+### 13.2 Created Modules & Contracts
+- [`apps/api/src/services/ai/types.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/services/ai/types.ts): Zod schemas (`ComplaintClassificationSchema`, `DraftRtiInputSchema`, `RtiDraftResultSchema`, `AudioTranscriptionResultSchema`, `HazardVerificationResultSchema`), types, and telemetry event contracts.
+- [`apps/api/src/services/ai/deterministic.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/services/ai/deterministic.ts): Deterministic multilingual classifier (Devanagari, Hindi script, Hinglish) across all 16 departments and 16 civic categories with risk escalator detection and statutory Form A / प्रपत्र क drafting with Section 7(5) BPL fee waiver logic.
+- [`apps/api/src/services/ai/gemini-provider.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/services/ai/gemini-provider.ts): Google Gemini 2.5 Flash integration via `fetch` with AbortController 8s timeout, structured JSON response parsing, and multimodal vision verification (`verifyHazardImage`).
+- [`apps/api/src/services/ai/groq-provider.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/services/ai/groq-provider.ts): Groq OpenAI-compatible completions integration with AbortController 8s timeout and JSON mode.
+- [`apps/api/src/services/ai/sarvam-provider.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/services/ai/sarvam-provider.ts): Sarvam AI speech-to-text (`saarika:v2`) and translation (`mayura:v1`) integration supporting Hindi and regional Indian dialects.
+- [`apps/api/src/services/ai/groq-whisper-provider.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/services/ai/groq-whisper-provider.ts): Groq Whisper (`whisper-large-v3-turbo`) audio transcription and translation fallback.
+- [`apps/api/src/services/ai/gateway.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/services/ai/gateway.ts): Core `AiGateway` orchestrator implementing the 3-tier cascade, audio transcription, hazard vision verification, telemetry sinks, and singleton factory `getAiGateway()`.
+- [`apps/api/src/services/ai/index.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/services/ai/index.ts): Central AI service barrel export.
+- [`apps/api/src/routes/ai.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/routes/ai.ts): Endpoints `POST /api/v1/ai/classify`, `POST /api/v1/ai/rti-draft`, `POST /api/v1/ai/transcribe` (rate-limited, authenticated, 10MB capped), and `POST /api/v1/ai/verify-hazard`.
+- [`apps/api/src/services/queue.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/services/queue.ts): QStash job orchestrator handling signature verification (`verifyQStashSignature`), non-blocking local dev fallback (`processTriageJobInline`), async AI triage execution, and idempotent SLA escalation scans.
+- [`apps/api/src/services/realtime.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/services/realtime.ts): Ably service managing channel publications (`complaint:{trackingCode}`, `ward:{wardId}`, `dept:{deptId}`, `admin:alerts`) and capability-scoped token request generation.
+- [`apps/api/src/routes/jobs.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/routes/jobs.ts): `POST /api/v1/internal/jobs/triage` and `POST /api/v1/internal/jobs/sla-check` guarded by QStash signature validation middleware.
+- [`apps/api/src/routes/realtime.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/routes/realtime.ts): `GET /api/v1/realtime/token` authenticated endpoint providing least-privilege Ably subscription tokens based on user role and assigned ward/dept.
+- [`apps/api/src/__tests__/ai-gateway.test.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/__tests__/ai-gateway.test.ts): 15 thorough test suites covering Tier 1 success, Tier 2 timeout fallback, Tier 3 dual-failure deterministic guarantee, multilingual accuracy, statutory RTI formatting, Sarvam STT primary, Groq Whisper fallback, oversized file rejection, Gemini multimodal vision, and vision graceful degradation.
+- [`apps/api/src/__tests__/queue-realtime.test.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/__tests__/queue-realtime.test.ts): 9 comprehensive tests covering QStash signature rejection (401), valid signature verification (200), async triage execution with real-time updates and cluster sync, SLA escalation ($0 \rightarrow 1 \rightarrow 2 \rightarrow 3$) with strict level 3 idempotency, Ably channel scoping (citizen, ward officer, admin), and local dev mode async triage without QStash credentials.
+
+### 13.3 Async Job Orchestration & Real-Time Specifications
+1. **Cryptographic Webhook Verification**:
+   - `POST /api/v1/internal/jobs/*` requests must supply an `upstash-signature` header verified against `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY` using the raw HTTP request body string. Missing or invalid signatures reject immediately with HTTP 401 Unauthorized.
+2. **Asynchronous Complaint Triage (`POST /api/v1/internal/jobs/triage`)**:
+   - Triggered immediately after `POST /api/v1/complaints` returns HTTP 201.
+   - Runs AI classification + multimodal vision verification.
+   - If AI classification confidence $\ge 0.75$, updates complaint category, urgency, and cluster urgency/department.
+   - Records an immutable `TRIAGED` audit trail event with previous vs new values.
+   - Publishes real-time `complaint:updated` events to `complaint:{trackingCode}`, `ward:{wardId}`, and `dept:{deptId}` channels.
+3. **SLA Auto-Escalation Engine (`POST /api/v1/internal/jobs/sla-check`)**:
+   - Scheduled cron running every 15 minutes.
+   - Queries open complaints and clusters where `sla_due_at < now()`.
+   - Incrementally escalates `escalation_level` ($0 \rightarrow 1 \rightarrow 2 \rightarrow 3$) and updates status to `ESCALATED`.
+   - **Idempotency Guarantee:** Complaints already at level 3 are never escalated further; subsequent cron runs report 0 escalated items for maxed complaints and emit no duplicate audit records.
+   - Publishes high-priority `sla:breach` alerts to `admin:alerts` and `ward:{wardId}` channels.
+4. **Ably Capability-Scoped Real-Time Tokens (`GET /api/v1/realtime/token`)**:
+   - Authenticated citizens receive tokens scoped exclusively to subscribe to `complaint:{trackingCode}`.
+   - Ward officers receive capabilities restricted to `ward:{wardId}`, `dept:{deptId}`, and `complaint:*`.
+   - Department heads receive capabilities restricted to `dept:{deptId}`, `ward:*`, and `complaint:*`.
+   - Municipal admins receive global wildcard capabilities `*`.
+5. **Local Dev & Offline Fallback**:
+   - When QStash credentials are not present in environment variables, `publishTriageJob` runs asynchronously on the event loop via `Promise.resolve().then(...)` without blocking the HTTP 201 response.
+
+### 13.4 Verification Results
+- **`apps/api` Vitest Test Suite**:
+  ```text
+  $ vitest run
+   ✓ src/__tests__/health.test.ts (3 tests)
+   ✓ src/__tests__/logger-env.test.ts (5 tests)
+   ✓ src/__tests__/error-handler.test.ts (4 tests)
+   ✓ src/__tests__/meta.test.ts (2 tests)
+   ✓ src/__tests__/cors.test.ts (6 tests)
+   ✓ src/__tests__/rate-limiter.test.ts (3 tests)
+   ✓ src/__tests__/auth-rbac.test.ts (13 tests)
+   ✓ src/__tests__/serializers.test.ts (12 tests)
+   ✓ src/__tests__/complaints.test.ts (7 tests)
+   ✓ src/__tests__/clusters-admin-geo.test.ts (9 tests)
+   ✓ src/__tests__/media-storage.test.ts (9 tests)
+   ✓ src/__tests__/rti.test.ts (7 tests)
+   ✓ src/__tests__/ai-gateway.test.ts (15 tests)
+   ✓ src/__tests__/queue-realtime.test.ts (9 tests)
+
+   Test Files  14 passed (14)
+        Tests  104 passed (104)
+     Duration  2.55s
+  ```
+- **Monorepo Global Verification**:
+  ```text
+  $ pnpm test && pnpm lint && pnpm typecheck
+  Tasks: 3 successful across test (139 passed, 1 skipped)
+  Tasks: 5 successful across lint (0 warnings, 0 errors)
+  Tasks: 5 successful across typecheck (0 errors)
   ```

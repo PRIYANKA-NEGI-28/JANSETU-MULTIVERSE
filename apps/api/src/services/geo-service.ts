@@ -91,8 +91,8 @@ export async function resolveWardAndAddress(
         matchedWard = {
           id: wardRecord.id,
           name: wardRecord.name,
-          code: wardRecord.code,
-          city: 'Delhi NCR',
+          code: wardRecord.number,
+          city: wardRecord.city ?? 'Delhi NCR',
           state: 'Delhi',
         };
         boundaryMatched = true;

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { AppEnv } from '../types/index.js';
 import { getComplaintStore } from '../services/complaint-store.js';
+import { getQueueService } from '../services/queue.js';
 import {
   serializeComplaint,
   serializeComplaintList,
@@ -10,7 +11,6 @@ import { HttpError } from '../middleware/error-handler.js';
 import {
   ComplaintCategorySchema,
   UrgencyLevelSchema,
-  ComplaintStatusSchema,
   type ComplaintCategory,
   type UrgencyLevel,
   type ComplaintStatus,
@@ -92,6 +92,19 @@ complaintsRoute.post('/', async (c) => {
     },
     env
   );
+
+  // Trigger asynchronous background AI triage via QStash / local dev queue
+  const queue = getQueueService(env);
+  queue
+    .publishTriageJob(
+      {
+        complaintId: created.id,
+        clusterId: created.clusterId,
+        photoUrl: created.photoUrl,
+      },
+      env
+    )
+    .catch(() => {});
 
   const serialized = serializeComplaint(created, user);
   return c.json(serialized, 201);

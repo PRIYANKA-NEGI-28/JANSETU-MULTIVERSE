@@ -9,17 +9,13 @@ import {
 } from '@jansetu/shared';
 import {
   obfuscatePublicCoords,
-  type AppDatabase,
   getDatabase,
   complaints as complaintsTable,
-  complaintClusters as clustersTable,
   complaintEvents as eventsTable,
-  wards as wardsTable,
-  departments as departmentsTable,
   resolveWardByCoords,
   findNearbyOpenCluster,
+  eq,
 } from '@jansetu/db';
-import { eq, and, sql } from 'drizzle-orm';
 import type { ValidatedEnv } from '../config/env.js';
 import type { ComplaintEntity, LocationCoords } from '../serializers/complaint.js';
 import type { ClusterEntity } from '../serializers/cluster.js';
@@ -209,7 +205,7 @@ export class ComplaintStore {
 
     // 3. Cluster deduplication: match open cluster within 150m and 7 days
     let matchedClusterId: string | null = null;
-    let openCluster = await this.findOpenClusterNear(
+    const openCluster = await this.findOpenClusterNear(
       params.lat,
       params.lng,
       deptId,
@@ -390,7 +386,7 @@ export class ComplaintStore {
 
   async queryComplaints(
     filters: ComplaintFilterParams,
-    env?: ValidatedEnv
+    _env?: ValidatedEnv
   ): Promise<{ items: ComplaintEntity[]; total: number }> {
     let all = Array.from(this.inMemoryComplaints.values());
 
@@ -425,17 +421,17 @@ export class ComplaintStore {
     return { items, total };
   }
 
-  async findClusterById(id: string, env?: ValidatedEnv): Promise<ClusterEntity | null> {
+  async findClusterById(id: string, _env?: ValidatedEnv): Promise<ClusterEntity | null> {
     return this.inMemoryClusters.get(id) ?? null;
   }
 
-  async saveCluster(cluster: ClusterEntity, env?: ValidatedEnv): Promise<void> {
+  async saveCluster(cluster: ClusterEntity, _env?: ValidatedEnv): Promise<void> {
     this.inMemoryClusters.set(cluster.id, cluster);
   }
 
   async queryClustersByBoundingBox(
     bbox: BoundingBoxParams,
-    env?: ValidatedEnv
+    _env?: ValidatedEnv
   ): Promise<ClusterEntity[]> {
     let clusters = Array.from(this.inMemoryClusters.values());
 
@@ -463,7 +459,7 @@ export class ComplaintStore {
     notes?: string,
     actorId?: string,
     actorRole: Role = 'admin',
-    env?: ValidatedEnv
+    _env?: ValidatedEnv
   ): Promise<ClusterEntity> {
     const cluster = this.inMemoryClusters.get(clusterId);
     if (!cluster) {
@@ -513,7 +509,7 @@ export class ComplaintStore {
     notes?: string,
     actorId?: string,
     actorRole: Role = 'admin',
-    env?: ValidatedEnv
+    _env?: ValidatedEnv
   ): Promise<ClusterEntity> {
     const cluster = this.inMemoryClusters.get(clusterId);
     if (!cluster) {
@@ -721,10 +717,145 @@ export class ComplaintStore {
     return null;
   }
 
+  async updateComplaintTriage(
+    id: string,
+    updates: {
+      category?: string;
+      urgency?: string;
+      departmentId?: string;
+      summary?: string;
+    },
+    _env?: ValidatedEnv
+  ): Promise<ComplaintEntity | null> {
+    const existing = this.inMemoryComplaints.get(id);
+    if (!existing) return null;
+
+    const updated: ComplaintEntity = {
+      ...existing,
+      category: updates.category ?? existing.category,
+      urgency: updates.urgency ?? existing.urgency,
+      departmentId: updates.departmentId ?? existing.departmentId,
+      description: updates.summary ? `${existing.description}\n[AI Summary]: ${updates.summary}` : existing.description,
+      updatedAt: new Date(),
+    };
+
+    this.inMemoryComplaints.set(id, updated);
+    return updated;
+  }
+
+  async updateClusterTriage(
+    clusterId: string,
+    updates: {
+      category?: string;
+      urgency?: string;
+      departmentId?: string;
+    },
+    _env?: ValidatedEnv
+  ): Promise<ClusterEntity | null> {
+    const cluster = this.inMemoryClusters.get(clusterId);
+    if (!cluster) return null;
+
+    const updated: ClusterEntity = {
+      ...cluster,
+      departmentId: updates.departmentId ?? cluster.departmentId,
+      updatedAt: new Date(),
+    };
+
+    this.inMemoryClusters.set(clusterId, updated);
+    return updated;
+  }
+
+  async queryOverdueOpenComplaints(
+    now: Date = new Date(),
+    _env?: ValidatedEnv
+  ): Promise<ComplaintEntity[]> {
+    const overdue: ComplaintEntity[] = [];
+    const nowTime = now.getTime();
+
+    for (const comp of this.inMemoryComplaints.values()) {
+      if (comp.status === 'RESOLVED') continue;
+      const dueTime = new Date(comp.slaDueAt).getTime();
+      if (dueTime < nowTime) {
+        overdue.push(comp);
+      }
+    }
+
+    return overdue;
+  }
+
+  async escalateComplaintSla(
+    id: string,
+    _env?: ValidatedEnv
+  ): Promise<{ escalated: boolean; previousLevel: number; newLevel: number }> {
+    const comp = this.inMemoryComplaints.get(id);
+    if (!comp) {
+      return { escalated: false, previousLevel: 0, newLevel: 0 };
+    }
+
+    const currentLevel = comp.escalationLevel ?? 0;
+    if (currentLevel >= 3) {
+      // Idempotency: cannot escalate past maximum level 3
+      return { escalated: false, previousLevel: currentLevel, newLevel: currentLevel };
+    }
+
+    const newLevel = currentLevel + 1;
+    const now = new Date();
+
+    const updated: ComplaintEntity = {
+      ...comp,
+      escalationLevel: newLevel,
+      escalatedAt: now,
+      status: 'ESCALATED',
+      updatedAt: now,
+    };
+    this.inMemoryComplaints.set(id, updated);
+
+    // If belongs to cluster, update cluster as well
+    if (comp.clusterId) {
+      const cluster = this.inMemoryClusters.get(comp.clusterId);
+      if (cluster) {
+        this.inMemoryClusters.set(comp.clusterId, {
+          ...cluster,
+          status: 'ESCALATED',
+          escalationLevel: Math.max(cluster.escalationLevel ?? 0, newLevel),
+          updatedAt: now,
+        });
+      }
+    }
+
+    return { escalated: true, previousLevel: currentLevel, newLevel };
+  }
+
+  async addAuditEvent(
+    event: {
+      complaintId: string;
+      eventType: string;
+      actorRole: Role | 'system';
+      actorId?: string | null;
+      notes?: string | null;
+      metadata?: Record<string, unknown>;
+      fromStatus?: string | null;
+      toStatus?: string | null;
+    },
+    _env?: ValidatedEnv
+  ): Promise<void> {
+    this.inMemoryEvents.push({
+      id: `event-${crypto.randomUUID()}`,
+      complaintId: event.complaintId,
+      actorId: event.actorId ?? null,
+      actorRole: event.actorRole,
+      eventType: event.eventType,
+      fromStatus: event.fromStatus ?? null,
+      toStatus: event.toStatus ?? null,
+      notes: event.notes ?? null,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
   private async incrementClusterReportCount(
     clusterId: string,
-    newUrgency: UrgencyLevel,
-    env?: ValidatedEnv
+    _newUrgency: UrgencyLevel,
+    _env?: ValidatedEnv
   ): Promise<void> {
     const cluster = this.inMemoryClusters.get(clusterId);
     if (!cluster) return;

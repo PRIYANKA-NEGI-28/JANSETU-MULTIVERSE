@@ -1,6 +1,7 @@
 export * from './schema/index.js';
 export * from './helpers/index.js';
 export * from './client.js';
+export { eq, and, sql, desc, asc } from 'drizzle-orm';
 
 export interface DbPackageMeta {
   readonly name: '@jansetu/db';

@@ -30,6 +30,7 @@ export interface ComplaintEntity {
   readonly slaDueAt: Date | string;
   readonly resolvedAt?: Date | string | null;
   readonly escalatedAt?: Date | string | null;
+  readonly escalationLevel?: number;
   readonly createdAt: Date | string;
   readonly updatedAt: Date | string;
 }
