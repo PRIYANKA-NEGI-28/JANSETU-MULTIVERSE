@@ -173,16 +173,22 @@ export interface ClusterTimelineResponseDto {
 
 export interface MapClusterDto {
   readonly id: string;
-  readonly departmentCode: DepartmentCode;
+  readonly title?: string;
+  readonly departmentCode?: DepartmentCode;
+  readonly departmentId?: string;
   readonly status: ComplaintStatus;
-  readonly urgency: UrgencyLevel;
+  readonly urgency?: UrgencyLevel;
   readonly complaintCount: number;
   readonly centroid: {
-    readonly latitude: number;
-    readonly longitude: number;
+    readonly latitude?: number;
+    readonly longitude?: number;
+    readonly lat?: number;
+    readonly lng?: number;
   };
   readonly wardId: string | null;
-  readonly updatedAt: string;
+  readonly updatedAt?: string;
+  readonly lastActivityAt?: string;
+  readonly createdAt?: string;
 }
 
 export interface RtiApplicationDto {
@@ -259,19 +265,50 @@ export interface RealtimeTokenDto {
   readonly isMock?: boolean;
 }
 
+export interface DepartmentAnalyticsDto {
+  readonly id: string;
+  readonly name: string;
+  readonly totalComplaints: number;
+  readonly resolvedComplaints: number;
+  readonly pendingComplaints: number;
+  readonly resolutionRatePercent: number;
+}
+
+export interface SlaBreachItemDto {
+  readonly complaintId: string;
+  readonly trackingCode: string;
+  readonly title?: string;
+  readonly category?: string;
+  readonly urgency: UrgencyLevel | string;
+  readonly status?: string;
+  readonly wardId?: string;
+  readonly departmentId?: string;
+  readonly slaDueAt: string;
+  readonly overdueHours?: number;
+  readonly escalationLevel?: number;
+}
+
 export interface AdminAnalyticsDto {
-  readonly complaints: {
+  readonly totalComplaints?: number;
+  readonly totalClusters?: number;
+  readonly resolvedComplaints?: number;
+  readonly activeComplaints?: number;
+  readonly overallResolutionRatePercent?: number;
+  readonly statusBreakdown?: Record<ComplaintStatus, number>;
+  readonly urgencyBreakdown?: Record<UrgencyLevel, number>;
+  readonly departmentAnalytics?: readonly DepartmentAnalyticsDto[];
+  readonly averageResolutionHours?: number;
+  readonly complaints?: {
     readonly total: number;
     readonly resolved: number;
     readonly pending: number;
     readonly escalated: number;
   };
-  readonly clusters: {
+  readonly clusters?: {
     readonly total: number;
     readonly active: number;
   };
-  readonly averageResolutionHours: number;
-  readonly generatedAt: string;
+  readonly generatedAt?: string;
 }
 
 export class ApiClient {
@@ -527,18 +564,24 @@ export class ApiClient {
         }
       ),
 
-    getMapClusters: (params?: {
+    getMapClusters: async (params?: {
       minLat?: number;
       maxLat?: number;
       minLng?: number;
       maxLng?: number;
       department?: DepartmentCode;
       status?: ComplaintStatus;
-    }) =>
-      this.request<{ clusters: readonly MapClusterDto[] }>('/api/v1/map/clusters', {
-        method: 'GET',
-        params,
-      }),
+    }): Promise<{ clusters: readonly MapClusterDto[] }> => {
+      const res = await this.request<{ clusters?: readonly MapClusterDto[]; data?: readonly MapClusterDto[] }>(
+        '/api/v1/map/clusters',
+        {
+          method: 'GET',
+          params,
+        }
+      );
+      const clusters = res.data ?? res.clusters ?? [];
+      return { clusters };
+    },
   };
 
   // --- Statutory RTI APIs ---
@@ -719,13 +762,8 @@ export class ApiClient {
     getAnalytics: () => this.request<AdminAnalyticsDto>('/api/v1/admin/analytics'),
     getSlaBreaches: () =>
       this.request<{
-        breaches: readonly {
-          complaintId: string;
-          trackingCode: string;
-          urgency: UrgencyLevel;
-          slaDueAt: string;
-          escalationLevel: number;
-        }[];
+        count?: number;
+        breaches: readonly SlaBreachItemDto[];
       }>('/api/v1/admin/sla-breaches'),
   };
 }

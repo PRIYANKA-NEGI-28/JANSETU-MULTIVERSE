@@ -607,10 +607,302 @@ Tasks: 5 successful across lint (0 warnings, 0 errors)
 - `pnpm lint`: 5 successful, 5 total (0 warnings, 0 errors).
 - `pnpm test`: 3 successful, 3 total (139 passed, 1 skipped, 0 failures).
 
-### 15.3 Next Implementation Priorities (Phase 5 Entry Gate)
-- **Interactive Mapping & Rich Telemetry Integration (`apps/web` Feature Depth):**
-  - Integrate Leaflet / MapLibre with cluster markers on `/hazard-map`.
-  - Connect Ably subscriber in `apps/web` using token issued by `GET /api/v1/realtime/token`.
-  - Wire Web Speech API voice recording and audio upload to `POST /api/v1/ai/transcribe`.
-- **Mobile (`apps/mobile`) Modernization:**
-  - Modernize Expo app with `@better-auth/expo` and shared contracts.
+---
+
+## 16. Phase 4 Citizen Web Portal Completion & Phase 5 Entry Gate
+
+### 16.1 Delivered Modules & Capabilities
+1. **File Complaint Form ([`SubmitComplaintView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/SubmitComplaintView.tsx))**:
+   - **Voice Recording & Transcription**: Integrated native `MediaRecorder` hook ([`useVoiceRecorder.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/hooks/useVoiceRecorder.ts)) with audio countdown and automatic dispatch to `POST /api/v1/ai/transcribe` with language detection (`hi`/`en`).
+   - **Browser Geolocation & Ward Resolution**: HTML5 Geolocation linked to `GET /api/v1/geo/resolve-ward?lat=...&lng=...`, resolving municipal ward ID and zone name.
+   - **Client-Side Image Compression & EXIF Stripping**: Built [`compressCivicImage`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/lib/imageCompression.ts) using `browser-image-compression` (max 1280px, WebP, max 1MB) with `preserveExif: false` to strip citizen camera and GPS metadata for privacy.
+   - **R2 Presigned Upload**: Dual-step upload via `api.media.presign` (`POST /api/v1/media/presign`) and direct binary PUT to Cloudflare R2 storage.
+   - **Idempotent Submission**: Client-generated UUID `X-Idempotency-Key` passed to `POST /api/v1/complaints` preventing accidental duplicate tickets; displays ticket receipt card with one-click clipboard copy.
+
+2. **Complaint Tracker ([`TrackComplaintView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/TrackComplaintView.tsx))**:
+   - **Dual-Mode Tracking**: Search by `tracking_code` or browse citizen's submitted complaints list via `api.complaints.list`.
+   - **Live Ably WebSocket Subscriptions**: Built [`useAblySubscription.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/hooks/useAblySubscription.ts) requesting ephemeral capability tokens from `GET /api/v1/realtime/token?trackingCode=...`, subscribing to `complaint:${trackingCode}` for `complaint:updated` and `sla:breach` events with live visual alerts and auto-refresh.
+   - **Resolution Stepper & Audit Timeline**: 4-stage visual progress stepper (`PENDING` -> `ASSIGNED` -> `IN_PROGRESS` -> `RESOLVED`) and full municipal audit timeline via `api.clusters.getTimeline(clusterId)`.
+
+3. **RTI Section 6(1) Statutory Drafter ([`RtiDrafterView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/RtiDrafterView.tsx))**:
+   - **Complaint Pre-fill**: Create standalone or pre-fill from unresolved complaint tracking code (`?complaint=...`).
+   - **AI-Assisted Statutory Drafting**: Integrated `POST /api/v1/ai/rti-draft` generating dual-language statutory applications in Hindi and English with BPL (Below Poverty Line) fee waiver toggle.
+   - **Live Editable Preview & One-Click PDF Download**: Real-time editable textarea draft with one-click Form A PDF download via `api.rti.downloadPdf(rtiId)`.
+
+4. **UI Resilience & Accessibility**:
+   - Accessible loading skeletons in [`Skeletons.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/ui/Skeletons.tsx) (`ComplaintCardSkeleton`, `TimelineSkeleton`, `FormSkeleton`).
+   - RFC 7807/9457 field error mappings with inline accessible `aria-invalid` and `role="alert"` warnings.
+
+### 16.2 Verification Matrix
+```bash
+$ pnpm --filter @jansetu/web build
+✓ built in 1.92s (dist/assets/index-DVo3dDpX.js 425.85 kB, all 11 lazy chunks generated)
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm lint
+Tasks: 5 successful, 5 total (0 warnings, 0 errors)
+
+$ pnpm test
+Tasks: 3 successful, 3 total (104 API passed, 35 shared/db passed, 0 failures)
+```
+
+### 16.3 Next Implementation Priorities (Phase 5 Entry Gate)
+- **Mobile (`apps/mobile`) Modernization**:
+  - Clean up legacy Supabase imports and align with `@jansetu/shared` + Better Auth.
+  - Native offline-first queue and GPS grievance submission.
+
+---
+
+## 17. Phase 4 Municipal Admin & Clustered Live Map Completion
+
+### 17.1 Delivered Modules & Capabilities
+1. **Municipal Admin Command Center ([`MunicipalAdminDashboard.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/MunicipalAdminDashboard.tsx))**:
+   - Administrative operations hub at `/admin` combining analytics, SLA escalation watchlist, geospatial filter controls, and interactive live map.
+   - Unified real-time telemetry syncing with Ably WebSocket subscriber (`ADMIN-GLOBAL` channel) and manual refresh trigger.
+2. **KPI Summary Cards & Visual Breakdown ([`KpiSummaryCards.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/KpiSummaryCards.tsx))**:
+   - Open vs. resolved clusters tracking.
+   - SLA compliance rate (target 95%) with on-time resolution metric.
+   - Average resolution time (18.4 hrs against 24.0 hr benchmark).
+   - Department breakdown across 5 municipal divisions with dynamic progress bars and percentage metrics.
+   - Urgency & status workflow distribution matrices.
+3. **Interactive Clustered Live Map ([`ClusteredLiveMap.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/ClusteredLiveMap.tsx))**:
+   - Integrated `react-leaflet@^4.2.1` and `leaflet@^1.9.4` with CARTO Voyager / OpenStreetMap tiles.
+   - Privacy-safe clustered complaint markers color-coded by urgency (`CRITICAL` glowing red, `HIGH` amber, `MEDIUM` yellow, `LOW` blue) with overdue SLA alert halos.
+   - IoT streetlight hardware node layer (`NORMAL` emerald, `FAULT_CONFIRMED` flashing red, `OFFLINE` slate) showing real-time LDR lux readings, AC line voltage, and pole hardware IDs.
+   - Real-time Ably WebSocket updates for incoming sensor anomalies and cluster state changes.
+   - 150m spatial privacy halos preserving citizen anonymity.
+   - **Lazy-Loaded Map Bundle**: Leaflet is partitioned into an isolated lazy chunk (`ClusteredLiveMap-jCABkY5O.js`, 165 kB) via `React.lazy` + `Suspense`, ensuring public landing pages remain ultra-lightweight.
+4. **Multidimensional Geospatial Filter Toolbar ([`MapFilters.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/MapFilters.tsx))**:
+   - Filters by municipal ward, department, status (`PENDING`, `ASSIGNED`, `IN_PROGRESS`, `RESOLVED`, `ESCALATED`), urgency (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`), and intake channel source (`ALL`, `MOBILE`, `WEB`, `IOT`).
+   - Quick toggle for IoT hardware layer and 1-click filter reset.
+5. **Critical SLA Breach Watchlist ([`SlaBreachWatchlist.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/SlaBreachWatchlist.tsx))**:
+   - Priority inspection table for L1/L2 auto-escalated tickets with overdue hour countdowns.
+
+### 17.2 Verification Matrix
+```bash
+$ pnpm --filter @jansetu/web build
+✓ built in 2.05s (dist/assets/ClusteredLiveMap-jCABkY5O.js 165.86 kB, isolated map CSS, all 12 chunks generated)
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm lint
+Tasks: 5 successful, 5 total (0 warnings, 0 errors)
+
+$ pnpm test
+Tasks: 3 successful, 3 total (104 API passed, 35 shared/db passed, 0 failures)
+```
+
+### 17.3 Next Implementation Priorities (Phase 5 Entry Gate)
+- **Mobile (`apps/mobile`) Modernization**:
+  - Remove legacy Supabase remnants and integrate Better Auth session client.
+  - Wire offline-first grievance queue and camera/GPS capture to `@jansetu/api`.
+  - Wire voice recording to `POST /api/v1/ai/transcribe`.
+- **Municipal Field Officer Workflow**:
+  - Implement mobile officer assignment status updates and closure photo proof upload.
+
+---
+
+## 18. Phase 4 Complete Handoff: Officer Operations, SLA Escalation Matrix & Vitest Suite
+
+### 18.1 Delivered Modules & Architecture Inventory
+1. **Officer Operations & Cluster Detail Drawer ([`ComplaintQueueDrawer.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/ComplaintQueueDrawer.tsx))**:
+   - Master triage table with full-text search, status filtering, merged duplicate volume (`report_count`), AI triage confidence score, and vision tags.
+   - Slide-over cluster inspection drawer detailing all citizen descriptions and submitted photos.
+   - Officer assignment dropdown invoking `api.clusters.assign`.
+   - Strict status transition form requiring a mandatory resolution note and optional proof-of-work photo upload via R2 presigned upload (`api.media.upload`).
+   - Immutable timeline component rendering chronological workflow actions (`api.clusters.getTimeline`).
+2. **SLA & Escalation Tracker ([`SlaEscalationTracker.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/SlaEscalationTracker.tsx))**:
+   - Radar highlighting clusters approaching breach (<4h remaining).
+   - Grouped escalation cards across 3 statutory tiers:
+     - **L1 (Ward Level, 0–24h)**: Direct ward officer re-assignment and push alerts.
+     - **L2 (Department Head, 24–48h)**: Department supervisor intervention and priority escalation.
+     - **L3 (Commissioner / Vigilance, >48h)**: Municipal vigilance inquiry and statutory breach notice dispatch.
+3. **Admin Dashboard Deep-Linked Tab Navigation ([`MunicipalAdminDashboard.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/MunicipalAdminDashboard.tsx))**:
+   - Integrated tab switcher (`overview`, `queue`, `sla`) with URL search parameter persistence (`?tab=queue`).
+4. **Vitest + React Testing Library Test Suite (`apps/web/src/__tests__/`)**:
+   - Configured `vitest@^2.1.8`, `@testing-library/react@^16.0.0`, `@testing-library/jest-dom@^6.4.8`, and `jsdom@^25.0.0`.
+   - 4 test suites, 12 passing tests:
+     - [`bilingual-toggle.test.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/__tests__/bilingual-toggle.test.tsx): Verifies `LangProvider`, instant Hindi/English translation swap, and `localStorage` persistence.
+     - [`complaint-submission.test.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/__tests__/complaint-submission.test.tsx): Validates form field constraints, min-length validation errors, and `aria-invalid` accessibility states.
+     - [`route-protection.test.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/__tests__/route-protection.test.tsx): Tests unauthenticated redirect to `/login`, role denial for citizen users on `/admin`, and authorized officer access.
+     - [`sla-badges.test.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/__tests__/sla-badges.test.tsx): Tests SLA compliance rate cards, overdue breach indicators, and impending deadline radar badges.
+5. **Vite Production Bundle & Chunk Optimization**:
+   - Initial app entry bundle (`index-Gyx_Twsv.js`): 426.54 kB (gzip: 133.69 kB).
+   - Heavy dependencies isolated into async chunks:
+     - `ClusteredLiveMap-V20N7ZEI.js`: 165.86 kB (gzip: 48.32 kB) + CSS 16.23 kB.
+     - `useAblySubscription-COFREN9W.js`: 213.79 kB (gzip: 58.93 kB).
+     - `AdminDashboardView-CPG2M9oj.js`: 73.64 kB (gzip: 16.10 kB).
+     - `SubmitComplaintView-aUAnwlxZ.js`: 71.82 kB (gzip: 27.08 kB).
+
+### 18.2 Verification Matrix
+```bash
+$ pnpm lint && pnpm typecheck && pnpm test && pnpm --filter @jansetu/web build
+✓ @jansetu/web: 4 test files, 12 passed
+✓ @jansetu/shared: 4 test files, 29 passed
+✓ @jansetu/db: 2 test files, 6 passed (1 skipped)
+✓ @jansetu/api: 14 test files, 104 passed
+✓ Monorepo typecheck: 5 packages, 0 errors
+✓ Monorepo lint: 5 packages, 0 warnings, 0 errors
+✓ Vite production build: 29 chunks generated in 1.98s
+```
+
+### 18.3 Phase 5 Mobile Modernization Entry Gate
+- **Mobile (`apps/mobile`) Modernization Targets**:
+  - Remove dead Supabase references and configure typed Better Auth session client.
+  - Wire offline-first SQLite grievance queue and background sync.
+  - Wire native camera and GPS capture to `@jansetu/api` media presigned upload.
+  - Wire voice recording to `POST /api/v1/ai/transcribe`.
+  - Implement Field Officer on-duty view with GPS routing and resolution proof capture.
+
+
+## 16. Phase 4 Citizen Web Portal Completion & Phase 5 Entry Gate
+
+### 16.1 Delivered Modules & Capabilities
+1. **File Complaint Form ([`SubmitComplaintView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/SubmitComplaintView.tsx))**:
+   - **Voice Recording & Transcription**: Integrated native `MediaRecorder` hook ([`useVoiceRecorder.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/hooks/useVoiceRecorder.ts)) with audio countdown and automatic dispatch to `POST /api/v1/ai/transcribe` with language detection (`hi`/`en`).
+   - **Browser Geolocation & Ward Resolution**: HTML5 Geolocation linked to `GET /api/v1/geo/resolve-ward?lat=...&lng=...`, resolving municipal ward ID and zone name.
+   - **Client-Side Image Compression & EXIF Stripping**: Built [`compressCivicImage`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/lib/imageCompression.ts) using `browser-image-compression` (max 1280px, WebP, max 1MB) with `preserveExif: false` to strip citizen camera and GPS metadata for privacy.
+   - **R2 Presigned Upload**: Dual-step upload via `api.media.presign` (`POST /api/v1/media/presign`) and direct binary PUT to Cloudflare R2 storage.
+   - **Idempotent Submission**: Client-generated UUID `X-Idempotency-Key` passed to `POST /api/v1/complaints` preventing accidental duplicate tickets; displays ticket receipt card with one-click clipboard copy.
+
+2. **Complaint Tracker ([`TrackComplaintView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/TrackComplaintView.tsx))**:
+   - **Dual-Mode Tracking**: Search by `tracking_code` or browse citizen's submitted complaints list via `api.complaints.list`.
+   - **Live Ably WebSocket Subscriptions**: Built [`useAblySubscription.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/hooks/useAblySubscription.ts) requesting ephemeral capability tokens from `GET /api/v1/realtime/token?trackingCode=...`, subscribing to `complaint:${trackingCode}` for `complaint:updated` and `sla:breach` events with live visual alerts and auto-refresh.
+   - **Resolution Stepper & Audit Timeline**: 4-stage visual progress stepper (`PENDING` -> `ASSIGNED` -> `IN_PROGRESS` -> `RESOLVED`) and full municipal audit timeline via `api.clusters.getTimeline(clusterId)`.
+
+3. **RTI Section 6(1) Statutory Drafter ([`RtiDrafterView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/RtiDrafterView.tsx))**:
+   - **Complaint Pre-fill**: Create standalone or pre-fill from unresolved complaint tracking code (`?complaint=...`).
+   - **AI-Assisted Statutory Drafting**: Integrated `POST /api/v1/ai/rti-draft` generating dual-language statutory applications in Hindi and English with BPL (Below Poverty Line) fee waiver toggle.
+   - **Live Editable Preview & One-Click PDF Download**: Real-time editable textarea draft with one-click Form A PDF download via `api.rti.downloadPdf(rtiId)`.
+
+4. **UI Resilience & Accessibility**:
+   - Accessible loading skeletons in [`Skeletons.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/ui/Skeletons.tsx) (`ComplaintCardSkeleton`, `TimelineSkeleton`, `FormSkeleton`).
+   - RFC 7807/9457 field error mappings with inline accessible `aria-invalid` and `role="alert"` warnings.
+
+### 16.2 Verification Matrix
+```bash
+$ pnpm --filter @jansetu/web build
+✓ built in 1.92s (dist/assets/index-DVo3dDpX.js 425.85 kB, all 11 lazy chunks generated)
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm lint
+Tasks: 5 successful, 5 total (0 warnings, 0 errors)
+
+$ pnpm test
+Tasks: 3 successful, 3 total (104 API passed, 35 shared/db passed, 0 failures)
+```
+
+### 16.3 Next Implementation Priorities (Phase 5 Entry Gate)
+- **Mobile (`apps/mobile`) Modernization**:
+  - Clean up legacy Supabase imports and align with `@jansetu/shared` + Better Auth.
+  - Native offline-first queue and GPS grievance submission.
+
+---
+
+## 17. Phase 4 Municipal Admin & Clustered Live Map Completion
+
+### 17.1 Delivered Modules & Capabilities
+1. **Municipal Admin Command Center ([`MunicipalAdminDashboard.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/MunicipalAdminDashboard.tsx))**:
+   - Administrative operations hub at `/admin` combining analytics, SLA escalation watchlist, geospatial filter controls, and interactive live map.
+   - Unified real-time telemetry syncing with Ably WebSocket subscriber (`ADMIN-GLOBAL` channel) and manual refresh trigger.
+2. **KPI Summary Cards & Visual Breakdown ([`KpiSummaryCards.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/KpiSummaryCards.tsx))**:
+   - Open vs. resolved clusters tracking.
+   - SLA compliance rate (target 95%) with on-time resolution metric.
+   - Average resolution time (18.4 hrs against 24.0 hr benchmark).
+   - Department breakdown across 5 municipal divisions with dynamic progress bars and percentage metrics.
+   - Urgency & status workflow distribution matrices.
+3. **Interactive Clustered Live Map ([`ClusteredLiveMap.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/ClusteredLiveMap.tsx))**:
+   - Integrated `react-leaflet@^4.2.1` and `leaflet@^1.9.4` with CARTO Voyager / OpenStreetMap tiles.
+   - Privacy-safe clustered complaint markers color-coded by urgency (`CRITICAL` glowing red, `HIGH` amber, `MEDIUM` yellow, `LOW` blue) with overdue SLA alert halos.
+   - IoT streetlight hardware node layer (`NORMAL` emerald, `FAULT_CONFIRMED` flashing red, `OFFLINE` slate) showing real-time LDR lux readings, AC line voltage, and pole hardware IDs.
+   - Real-time Ably WebSocket updates for incoming sensor anomalies and cluster state changes.
+   - 150m spatial privacy halos preserving citizen anonymity.
+   - **Lazy-Loaded Map Bundle**: Leaflet is partitioned into an isolated lazy chunk (`ClusteredLiveMap-jCABkY5O.js`, 165 kB) via `React.lazy` + `Suspense`, ensuring public landing pages remain ultra-lightweight.
+4. **Multidimensional Geospatial Filter Toolbar ([`MapFilters.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/MapFilters.tsx))**:
+   - Filters by municipal ward, department, status (`PENDING`, `ASSIGNED`, `IN_PROGRESS`, `RESOLVED`, `ESCALATED`), urgency (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`), and intake channel source (`ALL`, `MOBILE`, `WEB`, `IOT`).
+   - Quick toggle for IoT hardware layer and 1-click filter reset.
+5. **Critical SLA Breach Watchlist ([`SlaBreachWatchlist.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/SlaBreachWatchlist.tsx))**:
+   - Priority inspection table for L1/L2 auto-escalated tickets with overdue hour countdowns.
+
+### 17.2 Verification Matrix
+```bash
+$ pnpm --filter @jansetu/web build
+✓ built in 2.05s (dist/assets/ClusteredLiveMap-jCABkY5O.js 165.86 kB, isolated map CSS, all 12 chunks generated)
+
+$ pnpm typecheck
+Tasks: 5 successful, 5 total (0 errors across @jansetu/api, @jansetu/db, @jansetu/mobile, @jansetu/shared, @jansetu/web)
+
+$ pnpm lint
+Tasks: 5 successful, 5 total (0 warnings, 0 errors)
+
+$ pnpm test
+Tasks: 3 successful, 3 total (104 API passed, 35 shared/db passed, 0 failures)
+```
+
+### 17.3 Next Implementation Priorities (Phase 5 Entry Gate)
+- **Mobile (`apps/mobile`) Modernization**:
+  - Remove legacy Supabase remnants and integrate Better Auth session client.
+  - Wire offline-first grievance queue and camera/GPS capture to `@jansetu/api`.
+  - Wire voice recording to `POST /api/v1/ai/transcribe`.
+- **Municipal Field Officer Workflow**:
+  - Implement mobile officer assignment status updates and closure photo proof upload.
+
+---
+
+## 18. Phase 4 Complete Handoff: Officer Operations, SLA Escalation Matrix & Vitest Suite
+
+### 18.1 Delivered Modules & Architecture Inventory
+1. **Officer Operations & Cluster Detail Drawer ([`ComplaintQueueDrawer.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/ComplaintQueueDrawer.tsx))**:
+   - Master triage table with full-text search, status filtering, merged duplicate volume (`report_count`), AI triage confidence score, and vision tags.
+   - Slide-over cluster inspection drawer detailing all citizen descriptions and submitted photos.
+   - Officer assignment dropdown invoking `api.clusters.assign`.
+   - Strict status transition form requiring a mandatory resolution note and optional proof-of-work photo upload via R2 presigned upload (`api.media.upload`).
+   - Immutable timeline component rendering chronological workflow actions (`api.clusters.getTimeline`).
+2. **SLA & Escalation Tracker ([`SlaEscalationTracker.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/SlaEscalationTracker.tsx))**:
+   - Radar highlighting clusters approaching breach (<4h remaining).
+   - Grouped escalation cards across 3 statutory tiers:
+     - **L1 (Ward Level, 0–24h)**: Direct ward officer re-assignment and push alerts.
+     - **L2 (Department Head, 24–48h)**: Department supervisor intervention and priority escalation.
+     - **L3 (Commissioner / Vigilance, >48h)**: Municipal vigilance inquiry and statutory breach notice dispatch.
+3. **Admin Dashboard Deep-Linked Tab Navigation ([`MunicipalAdminDashboard.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/admin/MunicipalAdminDashboard.tsx))**:
+   - Integrated tab switcher (`overview`, `queue`, `sla`) with URL search parameter persistence (`?tab=queue`).
+4. **Vitest + React Testing Library Test Suite (`apps/web/src/__tests__/`)**:
+   - Configured `vitest@^2.1.8`, `@testing-library/react@^16.0.0`, `@testing-library/jest-dom@^6.4.8`, and `jsdom@^25.0.0`.
+   - 4 test suites, 12 passing tests:
+     - [`bilingual-toggle.test.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/__tests__/bilingual-toggle.test.tsx): Verifies `LangProvider`, instant Hindi/English translation swap, and `localStorage` persistence.
+     - [`complaint-submission.test.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/__tests__/complaint-submission.test.tsx): Validates form field constraints, min-length validation errors, and `aria-invalid` accessibility states.
+     - [`route-protection.test.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/__tests__/route-protection.test.tsx): Tests unauthenticated redirect to `/login`, role denial for citizen users on `/admin`, and authorized officer access.
+     - [`sla-badges.test.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/__tests__/sla-badges.test.tsx): Tests SLA compliance rate cards, overdue breach indicators, and impending deadline radar badges.
+5. **Vite Production Bundle & Chunk Optimization**:
+   - Initial app entry bundle (`index-Gyx_Twsv.js`): 426.54 kB (gzip: 133.69 kB).
+   - Heavy dependencies isolated into async chunks:
+     - `ClusteredLiveMap-V20N7ZEI.js`: 165.86 kB (gzip: 48.32 kB) + CSS 16.23 kB.
+     - `useAblySubscription-COFREN9W.js`: 213.79 kB (gzip: 58.93 kB).
+     - `AdminDashboardView-CPG2M9oj.js`: 73.64 kB (gzip: 16.10 kB).
+     - `SubmitComplaintView-aUAnwlxZ.js`: 71.82 kB (gzip: 27.08 kB).
+
+### 18.2 Verification Matrix
+```bash
+$ pnpm lint && pnpm typecheck && pnpm test && pnpm --filter @jansetu/web build
+✓ @jansetu/web: 4 test files, 12 passed
+✓ @jansetu/shared: 4 test files, 29 passed
+✓ @jansetu/db: 2 test files, 6 passed (1 skipped)
+✓ @jansetu/api: 14 test files, 104 passed
+✓ Monorepo typecheck: 5 packages, 0 errors
+✓ Monorepo lint: 5 packages, 0 warnings, 0 errors
+✓ Vite production build: 29 chunks generated in 1.98s
+```
+
+### 18.3 Phase 5 Mobile Modernization Entry Gate
+- **Mobile (`apps/mobile`) Modernization Targets**:
+  - Remove dead Supabase references and configure typed Better Auth session client.
+  - Wire offline-first SQLite grievance queue and background sync.
+  - Wire native camera and GPS capture to `@jansetu/api` media presigned upload.
+  - Wire voice recording to `POST /api/v1/ai/transcribe`.
+  - Implement Field Officer on-duty view with GPS routing and resolution proof capture.
+

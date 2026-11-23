@@ -1,4 +1,4 @@
-import imageCompression from 'browser-image-compression';
+import imageCompression, { type Options as CompressionOptions } from 'browser-image-compression';
 
 export interface ImageCompressionOptions {
   readonly maxSizeMB?: number;
@@ -23,7 +23,7 @@ export async function compressCivicImage(
     return file;
   }
 
-  const compressionConfig: imageCompression.Options = {
+  const compressionConfig: CompressionOptions = {
     maxSizeMB,
     maxWidthOrHeight,
     useWebWorker: true,

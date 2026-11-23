@@ -88,19 +88,22 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
   const [user, setUser] = useState<AuthUserDto | null>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_USER_KEY);
-      return stored ? (JSON.parse(stored) as AuthUserDto) : DEMO_ACCOUNTS.citizen.user;
+      if (!stored || stored === 'null') return null;
+      return JSON.parse(stored) as AuthUserDto;
     } catch {
-      return DEMO_ACCOUNTS.citizen.user;
+      return null;
     }
   });
 
   const [session, setSession] = useState<AuthSessionDto | null>(() => {
     try {
       const token = localStorage.getItem(STORAGE_TOKEN_KEY);
-      if (token) {
+      const storedUser = localStorage.getItem(STORAGE_USER_KEY);
+      if (token && storedUser && storedUser !== 'null') {
+        const parsed = JSON.parse(storedUser) as AuthUserDto;
         return {
           id: 'local-session-id',
-          userId: user?.id ?? 'local-user',
+          userId: parsed.id,
           token,
           expiresAt: new Date(Date.now() + 86400000).toISOString(),
         };
@@ -129,7 +132,11 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
           }
         }
       } catch {
-        // Backend not online or unauthenticated, keep local demo session safely
+        // Backend not online or unauthenticated, keep local session if valid token
+        if (mounted && !localStorage.getItem(STORAGE_TOKEN_KEY)) {
+          setUser(null);
+          setSession(null);
+        }
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -223,8 +230,16 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
   const switchDemoRole = useCallback((role: Role) => {
     const demo = DEMO_ACCOUNTS[role].user;
+    const demoSession: AuthSessionDto = {
+      id: `demo-session-${role}`,
+      userId: demo.id,
+      token: `demo-token-${role}`,
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+    };
     setUser(demo);
+    setSession(demoSession);
     localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(demo));
+    localStorage.setItem(STORAGE_TOKEN_KEY, demoSession.token);
     setError(null);
   }, []);
 
@@ -251,7 +266,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
         user,
         session,
         isLoading,
-        isAuthenticated: user !== null,
+        isAuthenticated: user !== null && session !== null,
         error,
         login,
         register,

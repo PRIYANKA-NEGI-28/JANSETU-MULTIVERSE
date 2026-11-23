@@ -1,7 +1,47 @@
-import { useState, useEffect } from 'react';
-import { MapPin, Layers } from 'lucide-react';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { Layers, RefreshCw } from 'lucide-react';
 import { api, type MapClusterDto } from '../lib/api.js';
 import { useLang } from '../contexts/LangContext.js';
+import type { ClusteredComplaintMarker, MapFilterState } from './admin/types.js';
+
+const DEFAULT_HAZARD_CLUSTERS: readonly MapClusterDto[] = [
+  {
+    id: 'cluster-demo-1',
+    title: 'High voltage wire hanging',
+    departmentCode: 'Municipal Corporation - Electrical Division',
+    status: 'IN_PROGRESS',
+    urgency: 'CRITICAL',
+    complaintCount: 5,
+    centroid: { lat: 28.636, lng: 77.371 },
+    wardId: 'Ghaziabad Ward 1 (Indirapuram)',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'cluster-demo-2',
+    title: 'Severe road cave-in and potholes',
+    departmentCode: 'Public Works Department (PWD)',
+    status: 'PENDING',
+    urgency: 'HIGH',
+    complaintCount: 3,
+    centroid: { lat: 28.643, lng: 77.337 },
+    wardId: 'Ghaziabad Ward 2 (Vaishali)',
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+function getHazardLat(centroid: MapClusterDto['centroid'], fallback: number): number {
+  if (typeof centroid.lat === 'number') return centroid.lat;
+  if (typeof centroid.latitude === 'number') return centroid.latitude;
+  return fallback;
+}
+
+function getHazardLng(centroid: MapClusterDto['centroid'], fallback: number): number {
+  if (typeof centroid.lng === 'number') return centroid.lng;
+  if (typeof centroid.longitude === 'number') return centroid.longitude;
+  return fallback;
+}
+
+const ClusteredLiveMap = lazy(() => import('./admin/ClusteredLiveMap.js'));
 
 export default function HazardMapView() {
   const { T } = useLang();
@@ -20,22 +60,32 @@ export default function HazardMapView() {
           setClusters([
             {
               id: 'cluster-demo-1',
-              departmentCode: 'dept-electricity',
+              departmentCode: 'Municipal Corporation - Electrical Division',
               status: 'IN_PROGRESS',
               urgency: 'CRITICAL',
               complaintCount: 5,
-              centroid: { latitude: 28.628, longitude: 77.3649 },
-              wardId: 'ward-ghz-01-indirapuram',
+              centroid: { lat: 28.636, lng: 77.371 },
+              wardId: 'Ghaziabad Ward 1 (Indirapuram)',
               updatedAt: new Date().toISOString(),
             },
             {
               id: 'cluster-demo-2',
-              departmentCode: 'dept-pwd',
+              departmentCode: 'Public Works Department (PWD)',
               status: 'PENDING',
               urgency: 'HIGH',
               complaintCount: 3,
-              centroid: { latitude: 28.643, longitude: 77.337 },
-              wardId: 'ward-ghz-02-vaishali',
+              centroid: { lat: 28.643, lng: 77.337 },
+              wardId: 'Ghaziabad Ward 2 (Vaishali)',
+              updatedAt: new Date().toISOString(),
+            },
+            {
+              id: 'cluster-demo-3',
+              departmentCode: 'Delhi Jal Board / Water Supply Department',
+              status: 'ESCALATED',
+              urgency: 'CRITICAL',
+              complaintCount: 6,
+              centroid: { lat: 28.662, lng: 77.374 },
+              wardId: 'Ghaziabad Ward 12 (Vasundhara)',
               updatedAt: new Date().toISOString(),
             },
           ]);
@@ -47,6 +97,33 @@ export default function HazardMapView() {
       mounted = false;
     };
   }, []);
+
+  const activeList = clusters.length > 0 ? clusters : DEFAULT_HAZARD_CLUSTERS;
+  const complaintMarkers: readonly ClusteredComplaintMarker[] = activeList.map((c, i) => ({
+    id: c.id,
+    clusterId: c.id,
+    title: c.title || `Spatial cluster in ${c.wardId || 'Ward Area'}`,
+    departmentCode: c.departmentCode || 'Public Works Department (PWD)',
+    departmentName: String(c.departmentCode || 'Public Works Department (PWD)'),
+    wardId: c.wardId || `ward-0${i + 1}`,
+    wardName: c.wardId || 'Ghaziabad Municipal Area',
+    lat: getHazardLat(c.centroid, 28.636),
+    lng: getHazardLng(c.centroid, 77.371),
+    urgency: c.urgency ?? 'HIGH',
+    status: c.status,
+    source: 'WEB',
+    complaintCount: c.complaintCount,
+  }));
+
+  const publicFilterState: MapFilterState = {
+    ward: 'All Wards',
+    department: 'ALL',
+    status: 'ALL',
+    urgency: 'ALL',
+    source: 'ALL',
+    showIotLayer: true,
+    showClustersOnly: false,
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -62,67 +139,56 @@ export default function HazardMapView() {
 
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-orange-700 bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-xl">
-            {clusters.length} Active Hotspots
+            {complaintMarkers.length} Active Hotspots
           </span>
         </div>
       </div>
 
-      {/* Simulated Map Container with High-Resolution Visual Interface */}
-      <div className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden relative min-h-[500px] flex flex-col justify-between">
-        {/* Top Controls Overlay */}
-        <div className="p-4 z-10 flex justify-between items-center bg-gradient-to-b from-white/90 to-transparent">
-          <div className="flex items-center gap-2 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-gray-200 shadow-sm text-xs font-semibold text-gray-700">
-            <Layers size={14} className="text-orange-500" />
-            <span>Ghaziabad & Delhi NCR Zone</span>
+      {/* Clustered Live Map Container */}
+      <Suspense
+        fallback={
+          <div className="h-[600px] w-full rounded-3xl bg-gray-100 border border-gray-200 animate-pulse flex flex-col items-center justify-center text-gray-400 gap-2">
+            <RefreshCw className="animate-spin text-orange-500" size={28} />
+            <span className="text-xs font-bold">Loading Map Tiles & Clustered Hotspots...</span>
           </div>
-          <div className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-            <span>Live Geospatial Feed</span>
-          </div>
-        </div>
+        }
+      >
+        <ClusteredLiveMap
+          complaints={complaintMarkers}
+          iotNodes={[]}
+          filters={publicFilterState}
+          isRealtimeConnected={false}
+        />
+      </Suspense>
 
-        {/* Geographic Projection Visual Mock */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 flex items-center justify-center p-6">
-          <div className="w-full h-full relative border border-slate-700/60 rounded-2xl overflow-hidden bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:24px_24px]">
-            {clusters.map((c, i) => (
-              <div
-                key={c.id}
-                className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-transform duration-300 hover:scale-110 cursor-pointer"
-                style={{
-                  top: `${35 + i * 25}%`,
-                  left: `${30 + i * 35}%`,
-                }}
+      {/* Bottom Summary Hotspots Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        {complaintMarkers.map((c) => (
+          <div
+            key={c.id}
+            className="p-4 bg-white rounded-2xl border border-gray-200 shadow-sm text-xs space-y-1.5"
+          >
+            <div className="flex justify-between items-center font-bold">
+              <span className="text-gray-900 truncate">{c.departmentName}</span>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                  c.urgency === 'CRITICAL'
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-amber-100 text-amber-700'
+                }`}
               >
-                <div className="relative group">
-                  <div className="w-12 h-12 rounded-2xl bg-orange-500/20 border-2 border-orange-400 flex items-center justify-center animate-pulse shadow-lg shadow-orange-500/30">
-                    <MapPin className="text-orange-400" size={24} />
-                  </div>
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-slate-900/90 text-white text-xs px-3 py-1.5 rounded-xl border border-slate-700 whitespace-nowrap shadow-xl">
-                    <span className="font-bold text-orange-400">{c.complaintCount} reports</span> • {c.departmentCode}
-                  </div>
-                </div>
-              </div>
-            ))}
+                {c.urgency}
+              </span>
+            </div>
+            <div className="text-gray-500 font-medium flex items-center gap-1">
+              <Layers size={12} className="text-gray-400" />
+              <span>{c.wardName}</span>
+            </div>
+            <div className="text-[11px] font-bold text-emerald-600 pt-1 border-t border-gray-100">
+              {c.complaintCount} linked civic reports &bull; Status: {c.status}
+            </div>
           </div>
-        </div>
-
-        {/* Bottom Hotspots Panel */}
-        <div className="p-4 z-10 bg-white/95 backdrop-blur-md border-t border-gray-200">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {clusters.map((c) => (
-              <div key={c.id} className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-xs space-y-1">
-                <div className="flex justify-between font-bold">
-                  <span className="text-gray-900">{c.departmentCode}</span>
-                  <span className="text-orange-600">{c.urgency}</span>
-                </div>
-                <div className="text-gray-500">{c.wardId || 'Local Ward'}</div>
-                <div className="text-[11px] font-semibold text-emerald-600">
-                  {c.complaintCount} linked civic reports
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );

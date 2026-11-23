@@ -60,7 +60,7 @@ export function useAblySubscription(options: UseAblySubscriptionOptions) {
         channel.subscribe((message) => {
           if (!isMounted) return;
           const ev: AblyUpdateEvent = {
-            name: message.name,
+            name: message.name ?? 'complaint:updated',
             data: (message.data as Record<string, unknown>) ?? {},
             timestamp: message.timestamp ?? Date.now(),
           };
