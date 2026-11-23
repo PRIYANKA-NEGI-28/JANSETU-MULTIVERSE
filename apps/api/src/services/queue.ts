@@ -346,7 +346,6 @@ export class QueueService {
       await iotStore.markDeviceOffline(dev.deviceUid);
       offlineDeviceUids.push(dev.deviceUid);
 
-      const title = `IoT Connectivity Loss: Pole ${dev.deviceUid} unresponsive (>15 min)`;
       const description = `Streetlight hardware node ${dev.deviceUid} missed consecutive heartbeats for >15 minutes. Suspected power or gateway failure.`;
 
       // Create alert cluster

@@ -20,6 +20,7 @@ import type { ValidatedEnv } from '../config/env.js';
 import type { ComplaintEntity, LocationCoords } from '../serializers/complaint.js';
 import type { ClusterEntity } from '../serializers/cluster.js';
 import { HttpError } from '../middleware/error-handler.js';
+import { getDefaultInMemoryCache } from './cache.js';
 
 export interface CreateComplaintParams {
   readonly idempotencyKey: string;
@@ -541,6 +542,7 @@ export class ComplaintStore {
       updatedAt: now,
     };
     this.inMemoryClusters.set(clusterId, updated);
+    void getDefaultInMemoryCache().clear();
 
     // Propagate status update to linked complaints
     for (const [id, comp] of this.inMemoryComplaints.entries()) {

@@ -384,7 +384,7 @@ __________________________
   const result: RtiDraftResult = {
     subject: input.subject,
     authorityName: input.authorityName,
-    language: input.preferredLanguage,
+    language: input.preferredLanguage ?? input.language ?? 'en',
     statutoryText,
     questions,
     isBplExempt: isBpl,

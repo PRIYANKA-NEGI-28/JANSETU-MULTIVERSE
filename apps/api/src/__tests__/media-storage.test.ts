@@ -207,6 +207,34 @@ describe('Media Storage Service & Endpoints (Cloudflare R2)', () => {
       expect(cachedRes.status).toBe(304);
     });
 
+    it('rejects uploads with invalid magic bytes or spoofed headers with 400 Bad Request', async () => {
+      // Arbitrary binary that is not an allowed image or audio format
+      const invalidData = new Uint8Array([0x00, 0x11, 0x22, 0x33, 0x44]);
+      const res = await app.request('/api/v1/media/upload/malicious-file.bin', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: invalidData,
+      });
+
+      expect(res.status).toBe(400);
+      const json = (await res.json()) as RfcProblemDetails;
+      expect(json.title).toBe('Invalid Media Signature');
+    });
+
+    it('rejects uploads with MIME type mismatch against binary signature', async () => {
+      // JPEG header (FF D8 FF) sent with PNG Content-Type
+      const jpegBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+      const res = await app.request('/api/v1/media/upload/mismatched.png', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/png' },
+        body: jpegBytes,
+      });
+
+      expect(res.status).toBe(400);
+      const json = (await res.json()) as RfcProblemDetails;
+      expect(json.title).toBe('Invalid Media Signature');
+    });
+
     it('returns 404 Problem Details when object key does not exist', async () => {
       const res = await app.request('/api/v1/media/media/non-existent-uuid.png', {
         method: 'GET',

@@ -5,3 +5,10 @@ packages:
 allowBuilds:
   esbuild: true
   workerd: true
+
+overrides:
+  '@xmldom/xmldom': '>=0.8.15'
+  image-size: '>=2.0.3'
+  postcss: '>=8.5.18'
+  tar: '>=7.5.21'
+

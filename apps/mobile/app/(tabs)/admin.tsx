@@ -7,8 +7,8 @@ import {
   getAllComplaints,
   runEscalationCheck,
   type Neo4jComplaint,
-} from '../../lib/neo4j';
-import { useLang } from '../../lib/langContext';
+} from '../../src/lib/api-client';
+import { useLang } from '../../src/contexts/LanguageContext';
 import SimpleHeatMap from '../components/SimpleHeatMap';
 
 export default function AdminScreen() {

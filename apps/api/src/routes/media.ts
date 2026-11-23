@@ -6,6 +6,7 @@ import { HttpError } from '../middleware/error-handler.js';
 import {
   getStorageService,
   validateMediaMimeAndSize,
+  validateMagicBytes,
   type AllowedMediaMimeType,
 } from '../services/storage.js';
 
@@ -63,6 +64,19 @@ mediaRoute.put('/upload/:key{.*}', async (c) => {
 
   if (arrayBuffer.byteLength === 0) {
     throw new HttpError(400, 'Empty Payload', 'Uploaded file body cannot be empty');
+  }
+
+  // Strict MIME, size, and binary magic bytes validation
+  if (contentType !== 'application/octet-stream') {
+    const mimeCheck = validateMediaMimeAndSize(contentType, arrayBuffer.byteLength);
+    if (!mimeCheck.valid) {
+      throw new HttpError(400, 'Invalid Media Payload', mimeCheck.message || 'MIME type or size limit violated');
+    }
+  }
+
+  const magicCheck = validateMagicBytes(arrayBuffer, contentType);
+  if (!magicCheck.valid) {
+    throw new HttpError(400, 'Invalid Media Signature', magicCheck.message || 'File header failed binary verification');
   }
 
   const storage = getStorageService();

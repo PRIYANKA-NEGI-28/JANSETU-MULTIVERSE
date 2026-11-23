@@ -1,4 +1,4 @@
-import { obfuscatePublicCoords, getDatabase, iotDevices, iotTelemetry, eq } from '@jansetu/db';
+import { getDatabase, iotDevices, iotTelemetry, eq } from '@jansetu/db';
 import type { ValidatedEnv } from '../config/env.js';
 
 export interface IotDeviceEntity {

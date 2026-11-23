@@ -26,6 +26,18 @@ clustersRoute.get('/:id/timeline', async (c) => {
   return c.json({ clusterId, events }, 200);
 });
 
+clustersRoute.get('/:id', async (c) => {
+  const store = getComplaintStore();
+  const clusterId = c.req.param('id');
+
+  const cluster = await store.findClusterById(clusterId, c.get('env'));
+  if (!cluster) {
+    throw new HttpError(404, 'Not Found', `Cluster '${clusterId}' not found`);
+  }
+
+  return c.json(serializeCluster(cluster, c.get('user')), 200);
+});
+
 const AssignClusterPayloadSchema = z.object({
   officerId: z.string().trim().min(1, 'officerId is required'),
   notes: z.string().trim().optional(),
@@ -122,13 +134,16 @@ mapClustersRoute.get('/', async (c) => {
   const maxLng = Number(c.req.query('maxLng') ?? '180');
   const status = c.req.query('status') as ComplaintStatus | undefined;
   const departmentId = c.req.query('departmentId');
+  const isFresh = c.req.query('fresh') === 'true' || c.req.header('Cache-Control') === 'no-cache';
 
   const cacheKey = `map:clusters:${minLat.toFixed(2)}:${minLng.toFixed(2)}:${maxLat.toFixed(2)}:${maxLng.toFixed(2)}:${status ?? 'all'}:${departmentId ?? 'all'}`;
 
-  const cached = await cache.get<unknown[]>(cacheKey);
-  if (cached) {
-    c.header('X-Cache', 'HIT');
-    return c.json({ data: cached }, 200);
+  if (!isFresh) {
+    const cached = await cache.get<unknown[]>(cacheKey);
+    if (cached) {
+      c.header('X-Cache', 'HIT');
+      return c.json({ data: cached }, 200);
+    }
   }
 
   const clusters = await store.queryClustersByBoundingBox(

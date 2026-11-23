@@ -32,13 +32,13 @@ export default function HomeView() {
     let mounted = true;
     async function loadStats() {
       try {
-        const analytics = await api.admin.getAnalytics();
-        if (mounted && analytics?.complaints) {
+        const statsRes = await api.meta.getStats().catch(() => api.admin.getAnalytics());
+        if (mounted && statsRes?.complaints) {
           setStats({
-            total: analytics.complaints.total || 0,
-            resolved: analytics.complaints.resolved || 0,
-            pending: analytics.complaints.pending || 0,
-            escalated: analytics.complaints.escalated || 0,
+            total: statsRes.complaints.total || 0,
+            resolved: statsRes.complaints.resolved || 0,
+            pending: statsRes.complaints.pending || 0,
+            escalated: statsRes.complaints.escalated || 0,
           });
         }
       } catch {

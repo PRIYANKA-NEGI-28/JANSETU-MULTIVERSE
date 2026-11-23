@@ -605,6 +605,10 @@ export function ComplaintQueueDrawer({ onClusterUpdated }: ComplaintQueueDrawerP
                     <td className="py-4 px-5 text-right">
                       <button
                         type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDrawer(item);
+                        }}
                         className="inline-flex items-center gap-1 px-3 py-1.5 bg-orange-50 text-orange-700 hover:bg-orange-600 hover:text-white rounded-xl text-xs font-bold transition-all shadow-sm"
                       >
                         <span>Open Drawer</span>

@@ -6,13 +6,23 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development"
+      "channel": "development",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:3000",
+        "EXPO_PUBLIC_COMPLAINT_SERVER_URL": "http://localhost:3000",
+        "EXPO_PUBLIC_WS_URL": "ws://localhost:3000"
+      }
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.jansetu.gov.in",
+        "EXPO_PUBLIC_COMPLAINT_SERVER_URL": "https://api.jansetu.gov.in",
+        "EXPO_PUBLIC_WS_URL": "wss://api.jansetu.gov.in"
       }
     },
     "production": {
@@ -20,6 +30,11 @@
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.jansetu.gov.in",
+        "EXPO_PUBLIC_COMPLAINT_SERVER_URL": "https://api.jansetu.gov.in",
+        "EXPO_PUBLIC_WS_URL": "wss://api.jansetu.gov.in"
       }
     }
   },

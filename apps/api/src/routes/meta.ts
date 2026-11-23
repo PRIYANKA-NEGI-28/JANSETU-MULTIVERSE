@@ -11,6 +11,7 @@ import {
 } from '@jansetu/shared';
 import type { AppEnv } from '../types/index.js';
 import { createCacheService } from '../services/cache.js';
+import { getComplaintStore } from '../services/complaint-store.js';
 
 export const metaRoute = new Hono<AppEnv>();
 
@@ -93,3 +94,31 @@ metaRoute.get('/meta', async (c) => {
   c.header('X-Cache', 'MISS');
   return c.json(responsePayload, 200);
 });
+
+async function handleStats(c: import('hono').Context<AppEnv>) {
+  const store = getComplaintStore();
+  const analytics = await store.getAnalytics();
+  return c.json(
+    {
+      totalComplaints: analytics.totalComplaints,
+      resolvedComplaints: analytics.resolvedComplaints,
+      activeComplaints: analytics.activeComplaints,
+      totalClusters: analytics.totalClusters,
+      complaints: {
+        total: analytics.totalComplaints,
+        resolved: analytics.resolvedComplaints,
+        pending: analytics.statusBreakdown.PENDING ?? 0,
+        escalated: analytics.statusBreakdown.ESCALATED ?? 0,
+      },
+      clusters: {
+        total: analytics.totalClusters,
+        active: analytics.totalClusters,
+      },
+      timestamp: new Date().toISOString(),
+    },
+    200
+  );
+}
+
+metaRoute.get('/stats', handleStats);
+metaRoute.get('/meta/stats', handleStats);

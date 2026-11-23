@@ -4,11 +4,9 @@ import { createApp } from '../app.js';
 import { getIotStore, resetIotStore } from '../services/iot-store.js';
 import { getComplaintStore } from '../services/complaint-store.js';
 import {
-  getRealtimeService,
   resetRealtimeService,
 } from '../services/realtime.js';
 import {
-  getQueueService,
   resetQueueService,
   setQueueService,
   QueueService,

@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { getWebSentry } from '../lib/sentry.js';
 
 interface Props {
   readonly children: ReactNode;
@@ -21,10 +22,12 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    if (process.env.NODE_ENV !== 'production') {
-      // In dev, surface error diagnostic
-      void errorInfo;
-    }
+    const sentry = getWebSentry();
+    void sentry.captureException(error, {
+      extra: {
+        componentStack: errorInfo.componentStack,
+      },
+    });
   }
 
   private handleReload = (): void => {

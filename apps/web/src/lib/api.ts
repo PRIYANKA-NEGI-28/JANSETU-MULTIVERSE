@@ -447,6 +447,11 @@ export class ApiClient {
   // --- Meta APIs ---
   readonly meta = {
     getMeta: () => this.request<MetaResponseDto>('/api/v1/meta'),
+    getStats: () =>
+      this.request<{
+        complaints: { total: number; resolved: number; pending: number; escalated: number };
+        clusters: { total: number; active: number };
+      }>('/api/v1/meta/stats'),
   };
 
   // --- Complaints APIs ---
@@ -655,6 +660,9 @@ export class ApiClient {
       }),
 
     draftRti: (payload: {
+      applicantName?: string;
+      address?: string;
+      contactNumber?: string;
       subject: string;
       authorityName: string;
       language: 'en' | 'hi';

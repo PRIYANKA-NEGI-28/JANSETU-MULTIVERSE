@@ -1,5 +1,5 @@
-const PROXY_URL = process.env.EXPO_PUBLIC_NEO4J_PROXY_URL!;
-const ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+const PROXY_URL = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_NEO4J_PROXY_URL || 'http://localhost:3000';
+const ANON_KEY = '';
 
 async function getAuthToken(): Promise<string> {
   return ANON_KEY;

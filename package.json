@@ -9,13 +9,17 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "test:e2e": "playwright test",
+    "smoke-test": "tsx scripts/smoke-test.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
+    "@playwright/test": "^1.65.1",
     "eslint": "^9.9.1",
     "globals": "^15.9.0",
     "prettier": "^3.3.3",
+    "tsx": "^4.23.15",
     "turbo": "^2.3.3",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0"

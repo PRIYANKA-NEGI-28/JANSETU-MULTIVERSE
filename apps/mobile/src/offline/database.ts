@@ -1,3 +1,4 @@
+import type { SQLiteDatabase } from 'expo-sqlite';
 import type {
   CachedComplaintRecord,
   OfflineDatabaseAdapter,
@@ -76,14 +77,14 @@ export class MemoryDatabaseAdapter implements OfflineDatabaseAdapter {
 }
 
 export class ExpoSQLiteDatabaseAdapter implements OfflineDatabaseAdapter {
-  private dbInstance: any = null;
+  private dbInstance: SQLiteDatabase | null = null;
   private readonly dbName: string;
 
   constructor(dbName = 'jansetu_offline.db') {
     this.dbName = dbName;
   }
 
-  private async getDb() {
+  private async getDb(): Promise<SQLiteDatabase> {
     if (this.dbInstance) return this.dbInstance;
     const SQLite = await import('expo-sqlite');
     this.dbInstance = await SQLite.openDatabaseAsync(this.dbName);

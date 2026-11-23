@@ -1,6 +1,7 @@
 import type { ErrorHandler, NotFoundHandler } from 'hono';
 import { z } from 'zod';
 import type { AppEnv, RfcProblemDetails } from '../types/index.js';
+import { getSentry } from '../lib/sentry.js';
 
 export class HttpError extends Error {
   readonly status: number;
@@ -70,6 +71,28 @@ export const errorHandler: ErrorHandler<AppEnv> = (err, c) => {
       path: i.path.join('.'),
       message: i.message,
     }));
+  }
+
+  // Capture unhandled 5xx exceptions in Sentry with automatic PII scrubbing
+  if (status >= 500) {
+    const sentry = getSentry();
+    void sentry.captureException(err, {
+      request: {
+        url: c.req.url,
+        method: c.req.method,
+      },
+      extra: {
+        requestId,
+        path: c.req.path,
+        status,
+      },
+      user: c.get('user')
+        ? {
+            id: c.get('user')?.id,
+            role: c.get('user')?.role,
+          }
+        : undefined,
+    });
   }
 
   const problem: RfcProblemDetails = {

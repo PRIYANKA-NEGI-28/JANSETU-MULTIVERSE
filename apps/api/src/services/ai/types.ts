@@ -33,25 +33,65 @@ export const ComplaintClassificationSchema = z.object({
 
 export type ComplaintClassification = z.infer<typeof ComplaintClassificationSchema>;
 
-export const DraftRtiInputSchema = z.object({
-  applicantName: z.string().trim().min(1, 'Applicant name is required'),
-  fatherOrSpouseName: z.string().trim().optional(),
-  address: z.string().trim().min(3, 'Address is required'),
-  contactNumber: z.string().trim().min(8, 'Contact number is required'),
-  email: z.string().trim().email().optional().or(z.literal('')),
-  bplCardNo: z.string().trim().optional(),
-  bplYear: z.string().trim().optional(),
-  authorityName: z.string().trim().min(1, 'Public authority name is required'),
-  publicAuthorityAddress: z.string().trim().optional(),
-  subject: z.string().trim().min(3, 'Subject is required'),
-  description: z.string().trim().min(5, 'Description is required'),
-  specificQuestions: z.array(z.string().trim().min(1)).optional().default([]),
-  preferredLanguage: z.enum(['en', 'hi']).default('en'),
-  isBplExempt: z.boolean().optional().default(false),
-  clusterId: z.string().trim().optional(),
-});
+export interface DraftRtiInput {
+  readonly applicantName?: string;
+  readonly fatherOrSpouseName?: string;
+  readonly address?: string;
+  readonly contactNumber?: string;
+  readonly email?: string;
+  readonly bplCardNo?: string;
+  readonly bplCardNumber?: string;
+  readonly bplYear?: string;
+  readonly authorityName: string;
+  readonly publicAuthorityAddress?: string;
+  readonly subject: string;
+  readonly description?: string;
+  readonly complaintDetails?: string;
+  readonly specificQuestions?: readonly string[];
+  readonly preferredLanguage?: 'en' | 'hi';
+  readonly language?: 'en' | 'hi';
+  readonly isBplExempt?: boolean;
+  readonly clusterId?: string;
+}
 
-export type DraftRtiInput = z.infer<typeof DraftRtiInputSchema>;
+export const DraftRtiInputSchema = z
+  .object({
+    applicantName: z.string().trim().optional().default('Citizen Applicant'),
+    fatherOrSpouseName: z.string().trim().optional(),
+    address: z.string().trim().optional().default('Ward Area, Municipal Corporation'),
+    contactNumber: z.string().trim().optional().default('+91 98765 43210'),
+    email: z.string().trim().email().optional().or(z.literal('')),
+    bplCardNo: z.string().trim().optional(),
+    bplCardNumber: z.string().trim().optional(),
+    bplYear: z.string().trim().optional(),
+    authorityName: z.string().trim().min(1, 'Public authority name is required'),
+    publicAuthorityAddress: z.string().trim().optional(),
+    subject: z.string().trim().min(3, 'Subject is required'),
+    description: z.string().trim().optional(),
+    complaintDetails: z.string().trim().optional(),
+    specificQuestions: z.array(z.string().trim().min(1)).optional().default([]),
+    preferredLanguage: z.enum(['en', 'hi']).optional(),
+    language: z.enum(['en', 'hi']).optional(),
+    isBplExempt: z.boolean().optional().default(false),
+    clusterId: z.string().trim().optional(),
+  })
+  .transform((data): DraftRtiInput => ({
+    applicantName: data.applicantName || 'Citizen Applicant',
+    fatherOrSpouseName: data.fatherOrSpouseName,
+    address: data.address || 'Ward Area, Municipal Corporation',
+    contactNumber: data.contactNumber || '+91 98765 43210',
+    email: data.email,
+    bplCardNo: data.bplCardNo ?? data.bplCardNumber,
+    bplYear: data.bplYear,
+    authorityName: data.authorityName,
+    publicAuthorityAddress: data.publicAuthorityAddress,
+    subject: data.subject,
+    description: data.description ?? data.complaintDetails ?? data.subject,
+    specificQuestions: data.specificQuestions ?? [],
+    preferredLanguage: data.preferredLanguage ?? data.language ?? 'en',
+    isBplExempt: data.isBplExempt ?? false,
+    clusterId: data.clusterId,
+  }));
 
 export const RtiDraftResultSchema = z.object({
   subject: z.string().min(1),

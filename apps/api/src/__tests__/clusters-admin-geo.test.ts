@@ -112,9 +112,28 @@ describe('Clusters, Admin Analytics, and Geo Resolution Endpoints', () => {
   });
 
   describe('Admin Analytics & SLA Breaches', () => {
-    it('aggregates department statistics and status breakdowns', async () => {
+    it('rejects unauthenticated requests with 401 Unauthorized', async () => {
       const app = createApp();
       const res = await app.request('/api/v1/admin/analytics');
+      expect(res.status).toBe(401);
+
+      const breachRes = await app.request('/api/v1/admin/sla-breaches');
+      expect(breachRes.status).toBe(401);
+    });
+
+    it('rejects citizen role with 403 Forbidden', async () => {
+      const app = createApp();
+      const res = await app.request('/api/v1/admin/analytics', {
+        headers: { Authorization: 'Bearer demo-token-citizen' },
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it('aggregates department statistics and status breakdowns for admin/officer', async () => {
+      const app = createApp();
+      const res = await app.request('/api/v1/admin/analytics', {
+        headers: { Authorization: 'Bearer demo-token-admin' },
+      });
 
       expect(res.status).toBe(200);
       const body = (await res.json()) as AdminAnalyticsSummary;
@@ -126,7 +145,7 @@ describe('Clusters, Admin Analytics, and Geo Resolution Endpoints', () => {
       expect(body.departmentAnalytics.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('detects and lists overdue complaints via SLA breaches endpoint', async () => {
+    it('detects and lists overdue complaints via SLA breaches endpoint for admin/officer', async () => {
       const app = createApp();
 
       // Submit an overdue complaint directly into store
@@ -150,7 +169,9 @@ describe('Clusters, Admin Analytics, and Geo Resolution Endpoints', () => {
         (created as { slaDueAt: Date }).slaDueAt = new Date(Date.now() - 5 * 3600 * 1000);
       }
 
-      const res = await app.request('/api/v1/admin/sla-breaches');
+      const res = await app.request('/api/v1/admin/sla-breaches', {
+        headers: { Authorization: 'Bearer demo-token-admin' },
+      });
       expect(res.status).toBe(200);
 
       const body = (await res.json()) as { count: number; breaches: SlaBreachItem[] };

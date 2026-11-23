@@ -51,6 +51,74 @@ export function validateMediaMimeAndSize(
   return { valid: true };
 }
 
+export function validateMagicBytes(
+  input: ArrayBuffer | Uint8Array,
+  declaredMimeType?: string
+): MediaValidationResult {
+  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+  if (bytes.length < 4) {
+    return {
+      valid: false,
+      message: 'File size is too small to contain valid media headers',
+    };
+  }
+
+  let detectedType: AllowedMediaMimeType | null = null;
+
+  // JPEG: FF D8 FF
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    detectedType = 'image/jpeg';
+  }
+  // PNG: 89 50 4E 47 (\x89PNG)
+  else if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    detectedType = 'image/png';
+  }
+  // RIFF container: bytes 0..3 are 'RIFF' (0x52, 0x49, 0x46, 0x46)
+  else if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+    if (bytes.length >= 12) {
+      if (bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) {
+        detectedType = 'image/webp';
+      } else if (bytes[8] === 0x57 && bytes[9] === 0x41 && bytes[10] === 0x56 && bytes[11] === 0x45) {
+        detectedType = 'audio/wav';
+      } else {
+        detectedType = declaredMimeType === 'audio/wav' ? 'audio/wav' : 'image/webp';
+      }
+    } else {
+      detectedType = declaredMimeType === 'audio/wav' ? 'audio/wav' : 'image/webp';
+    }
+  }
+  // WebM / EBML: 1A 45 DF A3
+  else if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
+    detectedType = 'audio/webm';
+  }
+  // MP4 / M4A: ftyp at bytes 4..7 (0x66, 0x74, 0x79, 0x70)
+  else if (
+    bytes.length >= 8 &&
+    bytes[4] === 0x66 &&
+    bytes[5] === 0x74 &&
+    bytes[6] === 0x79 &&
+    bytes[7] === 0x70
+  ) {
+    detectedType = 'audio/mp4';
+  }
+
+  if (!detectedType) {
+    return {
+      valid: false,
+      message: 'File binary header does not match any accepted civic media signature (JPEG, PNG, WebP, WebM, WAV, MP4)',
+    };
+  }
+
+  if (declaredMimeType && declaredMimeType !== 'application/octet-stream' && detectedType !== declaredMimeType) {
+    return {
+      valid: false,
+      message: `File binary signature (${detectedType}) does not match declared Content-Type (${declaredMimeType})`,
+    };
+  }
+
+  return { valid: true };
+}
+
 export interface PresignUploadOptions {
   readonly filename: string;
   readonly mimeType: AllowedMediaMimeType;

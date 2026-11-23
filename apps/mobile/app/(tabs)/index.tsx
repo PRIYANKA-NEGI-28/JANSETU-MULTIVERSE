@@ -7,8 +7,8 @@ import {
   Lightbulb, Truck, Droplet, Circle, Construction, Zap, Activity
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { getAllComplaints, type Neo4jComplaint } from '../../lib/neo4j';
-import { useLang } from '../../lib/langContext';
+import { getAllComplaints, type Neo4jComplaint } from '../../src/lib/api-client';
+import { useLang } from '../../src/contexts/LanguageContext';
 
 const ISSUE_ICONS: Record<string, React.ReactNode> = {
   'Street Light': <Lightbulb size={18} color="#eab308" />,

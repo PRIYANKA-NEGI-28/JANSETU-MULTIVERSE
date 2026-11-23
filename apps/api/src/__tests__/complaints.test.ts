@@ -169,6 +169,8 @@ describe('Complaints Endpoints (Intake, Idempotency, Deduplication, & Queries)',
     for (const item of body.data) {
       expect('exactLocation' in item).toBe(false);
       expect('citizenPhone' in item).toBe(false);
+      expect('citizenEmail' in item).toBe(false);
+      expect('citizenName' in item).toBe(false);
     }
   });
 
@@ -189,6 +191,10 @@ describe('Complaints Endpoints (Intake, Idempotency, Deduplication, & Queries)',
     expect(retrieved.id).toBe(created.id);
     expect(retrieved.trackingCode).toBe(created.trackingCode);
     expect(retrieved.category).toBe(created.category);
+    expect('exactLocation' in retrieved).toBe(false);
+    expect('citizenPhone' in retrieved).toBe(false);
+    expect('citizenEmail' in retrieved).toBe(false);
+    expect('citizenName' in retrieved).toBe(false);
   });
 
   it('returns 404 for unknown tracking code', async () => {

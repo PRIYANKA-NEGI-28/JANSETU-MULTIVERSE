@@ -1,13 +1,78 @@
+# ==============================================================================
+# JanSetu Multiverse — Cloudflare Workers Production Configuration (Wrangler)
+# ==============================================================================
+# Runtime: Edge V8 isolate with Node.js compatibility layer
+# Framework: Hono v4 + Cloudflare Workers Types
+# Documentation: https://developers.cloudflare.com/workers/wrangler/configuration/
+
 name = "jansetu-api"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
+# ------------------------------------------------------------------------------
+# 1. Local & Preview Development Environment Variables
+# ------------------------------------------------------------------------------
 [vars]
 NODE_ENV = "development"
 LOG_LEVEL = "info"
-CORS_ORIGIN = "http://localhost:5173,http://localhost:3000"
+CORS_ORIGIN = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
+BETTER_AUTH_URL = "http://localhost:3000"
+MEDIA_PUBLIC_URL = "http://localhost:3000/api/v1/media"
 
 [[r2_buckets]]
 binding = "MEDIA_BUCKET"
-bucket_name = "jansetu-media"
+bucket_name = "jansetu-media-dev"
+
+# ------------------------------------------------------------------------------
+# 2. Production Environment ([env.production])
+# ------------------------------------------------------------------------------
+# Deploy with: pnpm --filter @jansetu/api exec wrangler deploy --env production
+[env.production]
+name = "jansetu-api-prod"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production.vars]
+NODE_ENV = "production"
+LOG_LEVEL = "info"
+CORS_ORIGIN = "https://jansetu.pages.dev,https://jansetu.gov.in"
+BETTER_AUTH_URL = "https://api.jansetu.gov.in"
+MEDIA_PUBLIC_URL = "https://media.jansetu.gov.in"
+
+[[env.production.r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "jansetu-media-prod"
+
+# ------------------------------------------------------------------------------
+# 3. Scheduled Cron Triggers & Upstash QStash Orchestration
+# ------------------------------------------------------------------------------
+# Cloudflare Workers Cron Trigger for SLA scanning (runs every 15 minutes)
+[triggers]
+crons = ["*/15 * * * *"]
+
+# QStash Cron Documentation:
+# To trigger asynchronous AI triage jobs or periodic SLA escalation sweeps via Upstash QStash:
+# Target Endpoint: https://api.jansetu.gov.in/api/v1/jobs/triage
+# Headers:
+#   Upstash-Cron: "*/15 * * * *"
+#   Upstash-Retries: "3"
+#   Content-Type: "application/json"
+#   Upstash-Signature: Verified automatically via @upstash/qstash Receiver
+
+# ------------------------------------------------------------------------------
+# 4. Production Secret Provisioning Checklist
+# ------------------------------------------------------------------------------
+# Run the following commands to securely provision production secrets in Cloudflare:
+#   pnpm --filter @jansetu/api exec wrangler secret put DATABASE_URL --env production
+#   pnpm --filter @jansetu/api exec wrangler secret put BETTER_AUTH_SECRET --env production
+#   pnpm --filter @jansetu/api exec wrangler secret put UPSTASH_REDIS_REST_URL --env production
+#   pnpm --filter @jansetu/api exec wrangler secret put UPSTASH_REDIS_REST_TOKEN --env production
+#   pnpm --filter @jansetu/api exec wrangler secret put QSTASH_CURRENT_SIGNING_KEY --env production
+#   pnpm --filter @jansetu/api exec wrangler secret put QSTASH_NEXT_SIGNING_KEY --env production
+#   pnpm --filter @jansetu/api exec wrangler secret put ABLY_API_KEY --env production
+#   pnpm --filter @jansetu/api exec wrangler secret put GEMINI_API_KEY --env production
+#   pnpm --filter @jansetu/api exec wrangler secret put GROQ_API_KEY --env production
+#   pnpm --filter @jansetu/api exec wrangler secret put SARVAM_API_KEY --env production
+#   pnpm --filter @jansetu/api exec wrangler secret put SENTRY_DSN --env production
+#   pnpm --filter @jansetu/api exec wrangler secret put IOT_DEVICE_SECRETS --env production

@@ -1,0 +1,55 @@
+name: Database Backup & Cold Storage Snapshot
+
+on:
+  schedule:
+    - cron: '0 2 * * 0' # Every Sunday at 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run backup in dry-run mode without live DB credentials'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+concurrency:
+  group: db-backup-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Neon Postgres Snapshot & Offsite Archive
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL Client Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client awscli
+
+      - name: Run Database Backup Pipeline
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          RETENTION_DAYS: 30
+        run: |
+          chmod +x scripts/db-backup.sh
+          ./scripts/db-backup.sh
+
+      - name: Upload Snapshot as Secure GitHub Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jansetu-db-snapshot-${{ github.run_id }}
+          path: |
+            backups/*.sql.gz
+            backups/*.sha256
+          retention-days: 30
+          if-no-files-found: error

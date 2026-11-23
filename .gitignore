@@ -33,6 +33,11 @@ GoogleService-Info.plist
 *.cert
 *.crt
 
+# Database backups & snapshots
+backups/
+*.sql.gz
+*.sql.sha256
+
 # ------------------------------------------------------------------------------
 # 2. Dependencies & Package Managers
 # ------------------------------------------------------------------------------
@@ -158,7 +163,6 @@ Podfile.lock
 # 8. Operating System & Editor Files
 # ------------------------------------------------------------------------------
 .DS_Store
-.DS_Store?
 ._*
 .AppleDouble
 .LSOverride
@@ -173,3 +177,10 @@ Thumbs.db
 *.swo
 *~
 .cora/
+
+# ------------------------------------------------------------------------------
+# 9. Test Artifacts & Playwright Reports
+# ------------------------------------------------------------------------------
+test-results/
+playwright-report/
+*.log

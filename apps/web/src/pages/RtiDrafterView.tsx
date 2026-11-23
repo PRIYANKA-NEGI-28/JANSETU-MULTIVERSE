@@ -104,6 +104,9 @@ export default function RtiDrafterView() {
 
     try {
       const res = await api.ai.draftRti({
+        applicantName: applicantName.trim() || 'Ramesh Sharma',
+        address: address.trim() || 'Indirapuram, Ghaziabad',
+        contactNumber: contactNumber.trim() || '+91 98765 43210',
         subject: subject.trim(),
         authorityName: authorityName.trim(),
         language: lang === 'hi' ? 'hi' : 'en',
@@ -145,7 +148,7 @@ export default function RtiDrafterView() {
           contactNumber: contactNumber.trim(),
           authorityName: authorityName.trim(),
           subject: subject.trim(),
-          description: activePreviewLang === 'hi' ? editableHindi : editableEnglish,
+          description: editableEnglish || editableHindi || subject.trim(),
           clusterId,
           specificQuestions: questionsList,
           isBplExempt,

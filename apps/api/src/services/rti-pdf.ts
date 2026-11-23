@@ -6,10 +6,27 @@ interface PageCursor {
   y: number;
 }
 
+function sanitizeForPdf(str: string): string {
+  if (!str) return '';
+  const normalized = str
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/\u2026/g, '...')
+    .replace(/₹/g, 'Rs. ');
+
+  let result = '';
+  for (let i = 0; i < normalized.length; i++) {
+    const code = normalized.charCodeAt(i);
+    result += code <= 255 ? normalized[i] : ' ';
+  }
+  return result.replace(/\s+/g, ' ').trim();
+}
+
 function drawWrappedText(
   cursor: PageCursor,
   pdfDoc: PDFDocument,
-  text: string,
+  rawText: string,
   font: PDFFont,
   fontSize: number,
   maxWidth: number,
@@ -17,6 +34,8 @@ function drawWrappedText(
   color = rgb(0.1, 0.1, 0.1),
   indent = 0
 ): void {
+  const text = sanitizeForPdf(rawText);
+  if (!text) return;
   const words = text.split(/\s+/);
   let currentLine = '';
 

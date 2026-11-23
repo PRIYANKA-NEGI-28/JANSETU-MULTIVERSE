@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "serve": "tsx src/node-server.ts",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"
   },
@@ -23,6 +24,7 @@
     "@aws-sdk/client-s3": "^3.1175.0",
     "@aws-sdk/s3-request-presigner": "^3.1175.0",
     "@better-auth/expo": "^1.7.27",
+    "@hono/node-server": "^2.1.11",
     "@jansetu/db": "workspace:*",
     "@jansetu/shared": "workspace:*",
     "@upstash/qstash": "^2.12.2",
@@ -37,6 +39,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261121.1",
     "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
     "typescript": "^5.5.3",
     "vitest": "^5.1.1",
     "wrangler": "^4.166.0"

@@ -34,7 +34,7 @@ const IotHeartbeatBodySchema = z.object({
 });
 
 // Helper to extract JSON from validated context
-function parseRawBody<T>(c: any, schema: z.ZodSchema<T>): T {
+function parseRawBody<T>(c: unknown, schema: z.ZodSchema<T>): T {
   const rawBody = (c as unknown as { rawIotBody?: string }).rawIotBody;
   let parsed: unknown = {};
   if (rawBody && rawBody.trim().length > 0) {
@@ -97,7 +97,6 @@ iotRoute.post('/events', async (c) => {
   // 3. State-Specific Actions
   if (validated.status === 'FAULT') {
     // Streetlight failure confirmed: create or link complaint cluster
-    const clusterTitle = `Streetlight hardware fault detected on pole ${device.deviceUid}`;
     const complaint = await complaintStore.createComplaint(
       {
         idempotencyKey: validated.idempotency_key,
