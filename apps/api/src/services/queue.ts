@@ -3,6 +3,7 @@ import type { ValidatedEnv } from '../config/env.js';
 import { getComplaintStore } from './complaint-store.js';
 import { getAiGateway } from './ai/gateway.js';
 import { getRealtimeService } from './realtime.js';
+import { getIotStore } from './iot-store.js';
 
 export interface TriageJobPayload {
   readonly complaintId: string;
@@ -322,6 +323,83 @@ export class QueueService {
       success: true,
       totalChecked: overdueList.length,
       escalatedCount,
+    };
+  }
+
+  async executeIotWatchdog(env?: ValidatedEnv): Promise<{
+    success: boolean;
+    checkedCount: number;
+    offlineCount: number;
+    devices: string[];
+  }> {
+    const iotStore = getIotStore();
+    const complaintStore = getComplaintStore();
+    const realtime = getRealtimeService(env);
+
+    // 15-minute inactivity cutoff
+    const cutoff = new Date(Date.now() - 15 * 60 * 1000);
+    const missedDevices = await iotStore.findDevicesWithMissedHeartbeats(cutoff);
+
+    const offlineDeviceUids: string[] = [];
+
+    for (const dev of missedDevices) {
+      await iotStore.markDeviceOffline(dev.deviceUid);
+      offlineDeviceUids.push(dev.deviceUid);
+
+      const title = `IoT Connectivity Loss: Pole ${dev.deviceUid} unresponsive (>15 min)`;
+      const description = `Streetlight hardware node ${dev.deviceUid} missed consecutive heartbeats for >15 minutes. Suspected power or gateway failure.`;
+
+      // Create alert cluster
+      const complaint = await complaintStore.createComplaint(
+        {
+          idempotencyKey: `watchdog-${dev.deviceUid}-${Math.floor(Date.now() / 600000)}`,
+          citizenName: 'JanSetu IoT Watchdog',
+          category: 'Street Light',
+          urgency: 'HIGH',
+          departmentId: dev.departmentId ?? 'dept-streetlights',
+          wardId: dev.wardId ?? 'ward-12',
+          area: 'Indirapuram Ward 12',
+          text: description,
+          lat: dev.location.lat,
+          lng: dev.location.lng,
+        },
+        env
+      );
+
+      // Audit event
+      await complaintStore.addAuditEvent(
+        {
+          complaintId: complaint.id,
+          eventType: 'POWER_OR_NETWORK_LOSS',
+          actorRole: 'system',
+          notes: `Automated IoT watchdog detected device ${dev.deviceUid} offline for >15min.`,
+          metadata: {
+            deviceId: dev.deviceUid,
+            lastHeartbeatAt: dev.lastHeartbeatAt,
+          },
+        },
+        env
+      );
+
+      // Publish Ably alert
+      const alertData = {
+        deviceId: dev.deviceUid,
+        clusterId: complaint.clusterId ?? complaint.id,
+        status: 'OFFLINE',
+        timestamp: Date.now(),
+      };
+
+      await realtime.publish('admin:alerts', 'iot:offline', alertData);
+      if (dev.wardId) {
+        await realtime.publish(`ward:${dev.wardId}`, 'iot:offline', alertData);
+      }
+    }
+
+    return {
+      success: true,
+      checkedCount: missedDevices.length,
+      offlineCount: offlineDeviceUids.length,
+      devices: offlineDeviceUids,
     };
   }
 }

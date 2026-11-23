@@ -572,7 +572,7 @@ export class ComplaintStore {
   }
 
   async getClusterTimeline(clusterId: string): Promise<ClusterTimelineEvent[]> {
-    const linkedComplaintIds = new Set<string>();
+    const linkedComplaintIds = new Set<string>([clusterId]);
     for (const comp of this.inMemoryComplaints.values()) {
       if (comp.clusterId === clusterId) {
         linkedComplaintIds.add(comp.id);

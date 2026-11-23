@@ -215,69 +215,92 @@ https://jansetu-multiverse.onrender.com/api/sensor
 # Project Structure
 
 ```
-jansetu/
+iot/
+├── sketch/                   # Hardened Arduino UNO Q C++ Firmware
+│   ├── pins.h                # Pinout, thresholds, and timing parameters
+│   ├── sensors.h / .cpp      # 16-sample rolling average ADC sampling with hysteresis
+│   ├── button.h / .cpp       # 50ms hardware debounce with single-trigger edge detection
+│   ├── outputs.h / .cpp      # White, Green, and Red indicator LED management
+│   ├── fsm.h / .cpp          # 3-state FSM (NORMAL -> POSSIBLE_FAULT -> FAULT_CONFIRMED)
+│   ├── communication.h / .cpp# RouterBridge RPC bindings & USB Serial terminal
+│   ├── sketch.ino            # Main firmware entrypoint with 4s Watchdog Timer
+│   ├── test_firmware.cpp     # Host C++ unit test runner
+│   └── README.md             # Detailed hardware & wiring specification
 │
-├── sketch/
-│   ├── communication.cpp
-│   ├── communication.h
-│   ├── fsm.cpp
-│   ├── fsm.h
-│   ├── sensors.cpp
-│   ├── sensors.h
-│   ├── outputs.cpp
-│   ├── outputs.h
-│   └── sketch.ino
+├── python/                   # Hardened Linux MPU Agent
+│   ├── models.py             # Pydantic data contracts (events, heartbeats, telemetry)
+│   ├── config.py             # Environment configuration (Pydantic + dotenv)
+│   ├── signer.py             # HMAC-SHA256 request signing and verification
+│   ├── outbox.py             # SQLite WAL store-and-forward persistence engine
+│   ├── client.py             # httpx client with strict TLS and HMAC headers
+│   ├── poller.py             # RouterBridge RPC poller with fallback
+│   ├── sender.py             # Resilient background worker with exponential backoff + jitter
+│   ├── logger.py             # Rotating file logs protecting eMMC/SD storage
+│   ├── main.py               # Main daemon with clean signal shutdown (SIGINT/SIGTERM)
+│   ├── pytest.ini            # Pytest test harness configuration
+│   ├── requirements.txt      # Pinned dependencies (httpx, pydantic, python-dotenv, pytest)
+│   ├── .env.example          # Environment variable template
+│   └── tests/                # Unit test suite
+│       ├── test_signer.py
+│       ├── test_outbox.py
+│       ├── test_poller.py
+│       └── test_integration.py
 │
-├── python/
-│   ├── main.py
-│   ├── sender.py
-│   ├── config.py
-│   ├── logger.py
-│   └── requirements.txt
-│
-└── app.yaml
+├── app.yaml                  # Arduino App descriptor
+└── README.md                 # System overview and quickstart guide
 ```
 
 ---
 
-# Installation
+## Installation & Setup
 
-## Prerequisites
+### Prerequisites
 
-* Arduino UNO Q
-* Arduino App
-* Python 3
-* Internet Connection
+* Arduino UNO Q (or Debian Linux gateway + Arduino microcontroller)
+* Python 3.10+
+* `uv` (fast Python toolchain)
 
 ---
 
-## Clone Repository
+## Configure Environment
+
+Copy `.env.example` to `.env` in `iot/python/`:
 
 ```bash
-git clone https://github.com/<repository>/jansetu-iot.git
+cp iot/python/.env.example iot/python/.env
+```
 
-cd jansetu-iot
+Key environment variables (NO hardcoded URLs in source code):
+- `BACKEND_URL`: URL of the JanSetu backend API (e.g. `http://localhost:3000` or production domain)
+- `DEVICE_UID`: Hardware node identifier (`UNO_Q_01`)
+- `DEVICE_HMAC_SECRET`: Cryptographic shared secret for HMAC-SHA256 request signing
+- `POLL_INTERVAL_SEC`: Frequency of MCU telemetry polling (`1.0`)
+- `HEARTBEAT_INTERVAL_SEC`: Frequency of health heartbeats (`300.0` = 5 minutes)
+- `OUTBOX_DB_PATH`: Path to SQLite store-and-forward outbox (`outbox.db`)
+
+---
+
+## Run Unit Tests
+
+Execute the automated test suite across all Python MPU modules:
+
+```bash
+cd iot/python
+uv venv .venv
+uv pip install -r requirements.txt
+uv run pytest -v
 ```
 
 ---
 
-## Configure Backend
+## Run the Edge Daemon
 
-Edit `config.py`
+Start the Linux MPU application:
 
-```python
-self.backend_url = "https://jansetu-multiverse.onrender.com"
+```bash
+cd iot/python
+uv run python main.py
 ```
-
----
-
-## Run
-
-Flash the Arduino firmware.
-
-Start the Linux MPU application from Arduino App.
-
-The device automatically begins monitoring the streetlight.
 
 ---
 

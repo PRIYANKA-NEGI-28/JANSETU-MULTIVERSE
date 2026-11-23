@@ -17,6 +17,7 @@ import { rtiRoute } from './routes/rti.js';
 import { aiRoute } from './routes/ai.js';
 import { jobsRoute } from './routes/jobs.js';
 import { realtimeRoute } from './routes/realtime.js';
+import { iotRoute } from './routes/iot.js';
 
 export interface AppOptions {
   readonly rateLimit?: RateLimitOptions;
@@ -46,6 +47,8 @@ export function createApp(options: AppOptions = {}): Hono<AppEnv> {
   app.route('/api/v1/ai', aiRoute);
   app.route('/api/v1/internal/jobs', jobsRoute);
   app.route('/api/v1/realtime', realtimeRoute);
+  app.route('/api/v1/iot', iotRoute);
+  app.route('/api/sensor', iotRoute);
 
   // Global Error & 404 Handlers
   app.notFound(notFoundHandler);

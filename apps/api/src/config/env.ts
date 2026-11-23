@@ -30,6 +30,7 @@ export const EnvSchema = z.object({
   QSTASH_URL: z.string().url().default('https://qstash.upstash.io/v2'),
   APP_URL: z.string().url().default('http://localhost:3000'),
   ABLY_API_KEY: z.string().optional(),
+  DEVICE_HMAC_SECRET: z.string().default('jansetu-iot-dev-secret'),
 });
 
 export type ValidatedEnv = z.infer<typeof EnvSchema>;

@@ -1,82 +1,99 @@
-import queue
 import logging
 import threading
 import time
-import requests
+from typing import Optional
+from client import EdgeHttpClient
+from outbox import SqliteOutbox
 
-class EventSender:
-    def __init__(self, endpoint_url, request_timeout=10.0, max_backoff_delay=60.0):
-        self.endpoint_url = endpoint_url
-        self.request_timeout = request_timeout
+logger = logging.getLogger("jansetu_iot.sender")
+
+
+class OutboxSender:
+    """
+    Background worker thread that continually flushes pending outbox events
+    to the cloud backend with retry backoff and HMAC request signing.
+    """
+
+    def __init__(
+        self,
+        outbox: SqliteOutbox,
+        client: EdgeHttpClient,
+        event_url: str,
+        flush_interval_sec: float = 0.5,
+        max_backoff_delay: float = 60.0,
+    ):
+        self.outbox = outbox
+        self.client = client
+        self.event_url = event_url
+        self.flush_interval_sec = flush_interval_sec
         self.max_backoff_delay = max_backoff_delay
-        self.queue = queue.Queue()
-        self.worker_thread = None
-        self.running = False
 
-    def start(self):
-        """
-        Starts the background worker thread.
-        """
-        self.running = True
-        self.worker_thread = threading.Thread(
+        self._thread: Optional[threading.Thread] = None
+        self._running = False
+        self._stop_event = threading.Event()
+
+    def start(self) -> None:
+        """Starts background worker thread."""
+        self._running = True
+        self._stop_event.clear()
+        self._thread = threading.Thread(
             target=self._worker_loop,
-            name="SenderThread",
-            daemon=True
+            name="OutboxSenderThread",
+            daemon=True,
         )
-        self.worker_thread.start()
+        self._thread.start()
+        logger.info("OutboxSender worker thread started")
 
-    def stop(self):
-        """
-        Signals the worker thread to stop and waits for it to join.
-        """
-        self.running = False
-        self.queue.put(None)  # Poison pill
-        if self.worker_thread:
-            self.worker_thread.join(timeout=2.0)
+    def stop(self, timeout: float = 2.0) -> None:
+        """Signals worker thread to terminate and waits for join."""
+        self._running = False
+        self._stop_event.set()
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=timeout)
+        logger.info("OutboxSender worker thread stopped")
 
-    def queue_event(self, status):
+    def flush_once(self, current_time: Optional[float] = None) -> int:
         """
-        Constructs the fixed JSON payload and queues it.
+        Executes a single flush pass of pending records.
+        Returns count of successfully delivered events.
         """
-        payload = {
-            "device_id": "UNO_Q_01",
-            "status": status,
-            "type": "STREETLIGHT"
-        }
-        logging.info(f"Queuing event '{status}'")
-        self.queue.put(payload)
+        pending_records = self.outbox.get_pending(limit=10, current_time=current_time)
+        delivered_count = 0
 
-    def _worker_loop(self):
-        logging.info("Sender worker thread started.")
-        while self.running:
-            payload = self.queue.get()
-            if payload is None:
-                self.queue.task_done()
+        for record in pending_records:
+            if not self._running and self._stop_event.is_set():
                 break
 
-            delay = 1.0
-            success = False
-            
-            while not success and self.running:
-                try:
-                    logging.info(f"Sending POST payload to {self.endpoint_url}: {payload}")
-                    response = requests.post(
-                        self.endpoint_url,
-                        json=payload,
-                        timeout=self.request_timeout
-                    )
-                    
-                    if response.status_code in [200, 201]:
-                        logging.info(f"Payload successfully delivered. Response: {response.status_code}")
-                        success = True
-                    else:
-                        logging.error(f"Backend returned non-success code {response.status_code}. Retrying...")
-                        time.sleep(delay)
-                        delay = min(delay * 2.0, self.max_backoff_delay)
-                except requests.RequestException as e:
-                    logging.warning(f"Network error sending payload: {e}. Retrying in {delay}s...")
-                    time.sleep(delay)
-                    delay = min(delay * 2.0, self.max_backoff_delay)
-                    
-            self.queue.task_done()
-location = '/api/sensor-alert'  # Backend endpoint path matching requirements
+            success, status_code, msg = self.client.send_signed_post(
+                url=self.event_url,
+                raw_json_body=record.payload_json,
+            )
+
+            if success:
+                self.outbox.mark_sent(record.id)
+                delivered_count += 1
+                logger.info(
+                    "Delivered event #%d [%s] to backend (HTTP %d)",
+                    record.id,
+                    record.idempotency_key,
+                    status_code,
+                )
+            else:
+                self.outbox.mark_failed(
+                    record_id=record.id,
+                    error_msg=msg,
+                    current_retry_count=record.retry_count,
+                    max_backoff_delay=self.max_backoff_delay,
+                    current_time=current_time,
+                )
+
+        return delivered_count
+
+    def _worker_loop(self) -> None:
+        while self._running:
+            try:
+                self.flush_once()
+            except Exception as e:
+                logger.error("Unexpected error in OutboxSender loop: %s", e)
+
+            self._stop_event.wait(self.flush_interval_sec)

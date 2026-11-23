@@ -61,3 +61,12 @@ jobsRoute.post('/sla-check', async (c) => {
   const result = await queueService.executeSlaCheck(env);
   return c.json(result, 200);
 });
+
+// POST /api/v1/internal/jobs/iot-watchdog - Scheduled 10-min Watchdog for Inactive Devices (>15m)
+jobsRoute.post('/iot-watchdog', async (c) => {
+  const env = c.get('env');
+  const queueService = getQueueService(env);
+
+  const result = await queueService.executeIotWatchdog(env);
+  return c.json(result, 200);
+});
