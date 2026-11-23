@@ -4,15 +4,35 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
-    "dev": "vite"
+    "lint": "eslint ."
   },
   "dependencies": {
-    "@jansetu/shared": "workspace:*"
+    "@jansetu/shared": "workspace:*",
+    "@tanstack/react-query": "^5.108.2",
+    "ably": "^2.30.0",
+    "browser-image-compression": "^2.0.2",
+    "clsx": "^2.1.1",
+    "i18next": "^24.2.3",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^15.7.4",
+    "react-router-dom": "^6.30.6",
+    "tailwind-merge": "^2.6.2"
   },
   "devDependencies": {
-    "typescript": "^5.5.3"
+    "@types/node": "^22.10.1",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.7.0",
+    "postcss": "^8.5.33",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.21"
   }
 }

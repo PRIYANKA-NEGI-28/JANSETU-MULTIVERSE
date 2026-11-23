@@ -573,3 +573,44 @@ Tasks: 5 successful across lint (0 warnings, 0 errors)
   - Wire audio submission to `POST /api/v1/ai/transcribe`.
 - **IoT Telemetry Edge Ingestion:**
   - Implement `POST /api/v1/iot/telemetry` with HMAC SHA-256 signature verification.
+
+
+---
+
+## 15. Phase 4 Frontend Core Completion Summary (`apps/web`)
+
+### 15.1 Delivered Architecture & Modules
+- [`apps/web/vite.config.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/vite.config.ts): Modern Vite 5 configuration with `@vitejs/plugin-react`, `@/` path alias, and `/api` dev proxy.
+- [`apps/web/tailwind.config.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/tailwind.config.js) & [`apps/web/src/index.css`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/index.css): Full patriotic tricolor theme, saffron/emerald palette, motion keyframes, ambient dot-mesh, card glow, and custom scrollbar styling.
+- [`apps/web/src/lib/i18n.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/lib/i18n.ts) & [`apps/web/src/contexts/LangContext.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/contexts/LangContext.tsx): Modern `i18next` engine loaded with 474+ keys from `@jansetu/shared` with instant English/Hindi switching.
+- [`apps/web/src/lib/api.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/lib/api.ts): Production `ApiClient` class with automatic credentials, abort timeout handling, RFC 7807 problem details parsing (`ApiClientError`), and typed methods for all backend endpoints.
+- [`apps/web/src/contexts/AuthContext.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/contexts/AuthContext.tsx): Better Auth session integration and 1-click demo role switcher (`citizen`, `ward_officer`, `dept_head`, `admin`).
+- [`apps/web/src/components/auth/ProtectedRoute.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/auth/ProtectedRoute.tsx) & [`apps/web/src/components/auth/RoleGuard.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/auth/RoleGuard.tsx): Role-based routing guards.
+- [`apps/web/src/components/layout/AppShell.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/layout/AppShell.tsx): Responsive layout with fixed desktop [`Navbar.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/layout/Navbar.tsx), mobile [`MobileHeader.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/layout/MobileHeader.tsx), and mobile [`BottomNav.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/layout/BottomNav.tsx).
+- [`apps/web/src/App.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/App.tsx): React Router v6 with `React.lazy` route splitting and `<Suspense fallback={<PageLoader />}>` for fast initial loads.
+- **Route Views**:
+  - [`apps/web/src/pages/HomeView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/HomeView.tsx)
+  - [`apps/web/src/pages/LoginView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/LoginView.tsx)
+  - [`apps/web/src/pages/RegisterView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/RegisterView.tsx)
+  - [`apps/web/src/pages/SubmitComplaintView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/SubmitComplaintView.tsx)
+  - [`apps/web/src/pages/TrackComplaintView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/TrackComplaintView.tsx)
+  - [`apps/web/src/pages/HazardMapView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/HazardMapView.tsx)
+  - [`apps/web/src/pages/RtiDrafterView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/RtiDrafterView.tsx)
+  - [`apps/web/src/pages/GrievanceOfficerView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/GrievanceOfficerView.tsx)
+  - [`apps/web/src/pages/AdminDashboardView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/AdminDashboardView.tsx)
+  - [`apps/web/src/pages/IotDashboardView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/IotDashboardView.tsx)
+  - [`apps/web/src/pages/NotFoundView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/NotFoundView.tsx)
+
+### 15.2 Verification Evidence
+- `pnpm --filter @jansetu/web build`: Succeeded in 1.50s generating 11 isolated lazy chunks.
+- `pnpm typecheck`: 5 successful, 5 total (0 errors).
+- `pnpm lint`: 5 successful, 5 total (0 warnings, 0 errors).
+- `pnpm test`: 3 successful, 3 total (139 passed, 1 skipped, 0 failures).
+
+### 15.3 Next Implementation Priorities (Phase 5 Entry Gate)
+- **Interactive Mapping & Rich Telemetry Integration (`apps/web` Feature Depth):**
+  - Integrate Leaflet / MapLibre with cluster markers on `/hazard-map`.
+  - Connect Ably subscriber in `apps/web` using token issued by `GET /api/v1/realtime/token`.
+  - Wire Web Speech API voice recording and audio upload to `POST /api/v1/ai/transcribe`.
+- **Mobile (`apps/mobile`) Modernization:**
+  - Modernize Expo app with `@better-auth/expo` and shared contracts.

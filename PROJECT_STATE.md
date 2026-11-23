@@ -841,3 +841,68 @@ Implemented in [`packages/db/src/seed.ts`](file:///Users/apple/Desktop/JANSETU-M
   Tasks: 5 successful across lint (0 warnings, 0 errors)
   Tasks: 5 successful across typecheck (0 errors)
   ```
+
+
+---
+
+## 14. Phase 4 Frontend Core Completion Summary (`apps/web`)
+
+### 14.1 Delivered Web Core Architecture
+1. **Modern Frontend Toolchain**:
+   - Upgraded to React 18 (`react@18.3.1`, `react-dom@18.3.1`), Vite 5 (`vite@5.4.21`, `@vitejs/plugin-react@4.7.0`), TypeScript 5, and Tailwind CSS (`tailwindcss@3.4.19`).
+   - Integrated React Router v6 (`react-router-dom@6.30.6`), TanStack Query v5 (`@tanstack/react-query@5.108.2`), and modern `i18next@24.2.3` + `react-i18next@15.7.4`.
+2. **Preserved Design Identity & Patriotic Tricolor Theme**:
+   - Preserved national tricolor flowing wave micro-animations in [`apps/web/src/components/TricolorWaves.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/TricolorWaves.tsx).
+   - Preserved ambient dot-mesh styling, premium button interactions, card glow hover effects, smooth scrollbar styling, and smooth layout fade transitions in [`apps/web/src/index.css`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/index.css).
+   - Maintained full visual fidelity with legacy `src/` while completely modernizing the underlying component architecture.
+3. **Bilingual Hindi & English i18n Foundation**:
+   - Initialized `i18next` with canonical dictionaries from `@jansetu/shared` containing 474+ bilingual translations in [`apps/web/src/lib/i18n.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/lib/i18n.ts).
+   - Built [`apps/web/src/contexts/LangContext.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/contexts/LangContext.tsx) exposing `{ lang, toggleLang, setLang, T, t }` with instant one-click toggle and `localStorage` persistence (`jansetu_lang`).
+4. **Typed JanSetu API Client (`apps/web/src/lib/api.ts`)**:
+   - Built production-ready [`ApiClient`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/lib/api.ts) with typed requests and structured RFC 7807 / 9457 problem detail error mapping (`ApiClientError`).
+   - Automatic credential injection: sends cookies (`credentials: 'include'`) and `Authorization: Bearer <token>` automatically when session tokens are present in `localStorage` (`jansetu_token`).
+   - Defensive timeout handling via `AbortController` (15-second default timeout, customizable per call).
+   - Full typed endpoints for:
+     - `auth`: `signIn`, `signUp`, `signOut`, `getSession`.
+     - `meta`: `getMeta`.
+     - `complaints`: `create`, `list`, `getByTrackingCode`.
+     - `clusters`: `getTimeline`, `assign`, `updateStatus`, `getMapClusters`.
+     - `rti`: `create`, `list`, `getPdfUrl`.
+     - `ai`: `classify`, `draftRti`, `transcribe`, `verifyHazard`.
+     - `media`: `presign`, `upload`.
+     - `geo`: `resolveWard`.
+     - `realtime`: `getToken`.
+     - `admin`: `getAnalytics`, `getSlaBreaches`.
+5. **Authentication Context & Role-Based Route Guards**:
+   - Built [`apps/web/src/contexts/AuthContext.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/contexts/AuthContext.tsx) with Better Auth integration and instant 1-click demo role switching (`citizen`, `ward_officer`, `dept_head`, `admin`).
+   - Built [`apps/web/src/components/auth/ProtectedRoute.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/auth/ProtectedRoute.tsx) and [`apps/web/src/components/auth/RoleGuard.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/auth/RoleGuard.tsx) enforcing authentication and municipal role permissions.
+   - Built [`apps/web/src/pages/LoginView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/LoginView.tsx) and [`apps/web/src/pages/RegisterView.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/pages/RegisterView.tsx).
+6. **Responsive App Shell & Lazy Route Splitting**:
+   - Created desktop [`Navbar.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/layout/Navbar.tsx), mobile [`MobileHeader.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/layout/MobileHeader.tsx), and mobile [`BottomNav.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/components/layout/BottomNav.tsx) with a sliding drawer for secondary services.
+   - Configured [`apps/web/src/App.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web/src/App.tsx) with `React.lazy` and `Suspense` (`PageLoader.tsx`) splitting every route into independent chunks (`HomeView`, `LoginView`, `RegisterView`, `SubmitComplaintView`, `TrackComplaintView`, `HazardMapView`, `RtiDrafterView`, `GrievanceOfficerView`, `AdminDashboardView`, `IotDashboardView`, `NotFoundView`).
+
+### 14.2 Verification Matrix
+```bash
+$ pnpm --filter @jansetu/web build
+dist/index.html                                 0.86 kB │ gzip:   0.48 kB
+dist/assets/index-C3bu7QTx.css                 39.89 kB │ gzip:   7.37 kB
+dist/assets/NotFoundView-kXi1O2zV.js            0.98 kB │ gzip:   0.52 kB
+dist/assets/IotDashboardView-DhUfvg7Y.js        2.55 kB │ gzip:   0.97 kB
+dist/assets/TrackComplaintView-WG_3po4X.js      4.41 kB │ gzip:   1.66 kB
+dist/assets/GrievanceOfficerView-CH7FBDhO.js    4.68 kB │ gzip:   1.79 kB
+dist/assets/AdminDashboardView-DbP7Icp4.js      4.68 kB │ gzip:   1.46 kB
+dist/assets/HazardMapView-DNKVrqYz.js           4.75 kB │ gzip:   1.88 kB
+dist/assets/RtiDrafterView-CXrGBPMe.js          5.07 kB │ gzip:   1.92 kB
+dist/assets/SubmitComplaintView-F3Nre2nD.js     7.39 kB │ gzip:   2.40 kB
+dist/assets/RegisterView-mLibevDz.js            7.70 kB │ gzip:   2.36 kB
+dist/assets/LoginView-BImghN_F.js               8.01 kB │ gzip:   2.29 kB
+dist/assets/HomeView-o2XAOFo-.js               13.23 kB │ gzip:   3.48 kB
+dist/assets/index-DhdQIVH7.js                 423.96 kB │ gzip: 132.62 kB
+✓ built in 1.50s
+
+$ pnpm typecheck && pnpm lint && pnpm test
+Tasks: 5 successful across typecheck (0 errors)
+Tasks: 5 successful across lint (0 warnings, 0 errors)
+Tasks: 3 successful across test (139 passed, 1 skipped, 0 failures)
+Tasks: 5 successful across build (0 errors)
+```
