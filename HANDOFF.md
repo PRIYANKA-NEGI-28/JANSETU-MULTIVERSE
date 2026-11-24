@@ -51,13 +51,15 @@ Before introducing any new features, the following high-priority bugs must be ad
    - In `apps/api/src/__tests__/ai-gateway.test.ts:289`, added simulated `mockFetch` for privacy/logging test case, preventing unmocked live network requests with dummy keys.
    - Verified `pnpm turbo run test --force` passes 100% of test suites (28 test files, 177 tests) across all packages without timeouts.
 
-### Phase 1: High-Priority Fixes (Broken Runtimes & 404s)
-1. **Fix Broken Supabase Imports in Mobile App**:
-   - `app/login.tsx:6`: `import { supabase } from '../lib/supabase';`
-   - `app/(tabs)/submit.tsx:14`: `import { supabase } from '../../lib/supabase';`
-   - *Fix*: Create a safe fallback client or align mobile authentication with `lib/auth.ts` / Firebase so the Expo bundle compiles without runtime crashes.
-2. **Fix Admin Dashboard Status Update 404**:
-   - `src/pages/AdminDashboard.tsx:91`: Calls `fetch('/api/complaint/' + id, { method: 'PATCH' })`.
+5. **[COMPLETED] Fix Mobile TypeScript TS2694 NodeJS.Timeout on Linux Runners**:
+   - In `apps/mobile/src/offline/useAblyTracking.ts:43`, replaced `useRef<NodeJS.Timeout | null>(null)` with portable `useRef<ReturnType<typeof setInterval> | null>(null)`.
+   - Verified 100% typecheck pass across all 5 workspace packages in `pnpm turbo run typecheck --force`.
+6. **[COMPLETED] Implement Cloudflare Workers Scheduled Cron Handler**:
+   - In `apps/api/src/index.ts`, exported `scheduled(event, env, ctx)` handler invoking `queueService.executeSlaCheck()` and `queueService.executeIotWatchdog()`, satisfying wrangler cron `*/15 * * * *`.
+7. **[COMPLETED] Wire PostgreSQL Store Queries with In-Memory Fallback**:
+   - In `apps/api/src/services/complaint-store.ts`, connected Drizzle ORM PostGIS queries in `queryComplaints`, `findClusterById`, `saveCluster`, `queryClustersByBoundingBox`, `updateClusterStatus`, and `getAnalytics` when `env.DATABASE_URL` is set, preserving in-memory fallback.
+8. **[COMPLETED] Synchronize Root .env.example with Modern Serverless Stack**:
+   - Updated `.env.example` to remove deprecated Firebase/Neo4j variables and align with Neon Postgres, Cloudflare Workers/Pages, Upstash Redis/QStash, Cloudflare R2, Ably Realtime, and Gemini/Groq.
    - *Fix*: Change endpoint to `fetch('/api/dashboard/complaint/' + id, { method: 'PATCH' })` (where it is actually defined in `dashboardRouter.js`), or use `updateComplaintStatus()` from `src/lib/neo4j.ts`.
 3. **Fix Cross-Platform Python Execution in Backend**:
    - `jansetu-backend/routers/grievanceRouter.js` (lines 21, 34) and `jansetu-backend/routers/drafterRouter.js` (line 17): Hardcode `C:\LocalAI\qai-env\Scripts\python.exe` and local Windows desktop paths.

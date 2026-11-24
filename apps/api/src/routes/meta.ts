@@ -97,7 +97,7 @@ metaRoute.get('/meta', async (c) => {
 
 async function handleStats(c: import('hono').Context<AppEnv>) {
   const store = getComplaintStore();
-  const analytics = await store.getAnalytics();
+  const analytics = await store.getAnalytics(c.get('env'));
   return c.json(
     {
       totalComplaints: analytics.totalComplaints,

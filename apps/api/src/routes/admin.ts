@@ -7,12 +7,12 @@ export const adminRoute = new Hono<AppEnv>();
 
 adminRoute.get('/analytics', requireRole('admin', 'dept_head', 'ward_officer'), async (c) => {
   const store = getComplaintStore();
-  const analytics = await store.getAnalytics();
+  const analytics = await store.getAnalytics(c.get('env'));
   return c.json(analytics, 200);
 });
 
 adminRoute.get('/sla-breaches', requireRole('admin', 'dept_head', 'ward_officer'), async (c) => {
   const store = getComplaintStore();
-  const breaches = await store.getSlaBreaches();
+  const breaches = await store.getSlaBreaches(c.get('env'));
   return c.json({ count: breaches.length, breaches }, 200);
 });

@@ -1,19 +1,39 @@
 # JanSetu Multiverse — Comprehensive Project State & Architectural Audit
 
-**Audit Date:** November 23, 2026  
-**Auditor:** Principal Software Architect  
+**Audit Date:** November 24, 2026 (Updated)  
+**Auditor:** Principal Software Architect & Application Security Engineer  
 **Repository Working Directory:** `/Users/apple/Desktop/JANSETU-MULTIVERSE`  
-**Current Git Branch:** `main` (Commit: `11b91e3`)
+**Current Git Branch:** `main`
 
 ---
 
-## 1. Executive Summary
+## 1. Executive Summary & Verification State
 
-JanSetu Multiverse is a hybrid multi-surface civic intelligence platform spanning:
-1. **Web Application (`src/`)**: A Vite + React 18 + Tailwind CSS single-page application providing bilingual citizen grievance reporting, statutory RTI drafting, live hazard mapping, IoT telemetry tracking, and an administrative control center.
-2. **Backend Engine (`jansetu-backend/`)**: A Node.js Express server with WebSocket broadcasting and Firebase Firestore data persistence, handling complaint registration, SLA escalations, IoT sensor alerts, and invoking Python-based NLP drafting pipelines.
-3. **Mobile Application (`app/` & `lib/`)**: An Expo (React Native 0.76) mobile application designed for on-the-go grievance submission, SVG hazard heat mapping, and RTI generation.
-4. **IoT Edge Gateway (`IOT/`)**: A Linux MPU Python agent intended to interface with an Arduino UNO Q microcontroller monitoring streetlight hardware via LDR sensors.
+JanSetu Multiverse has transitioned to a fully modular, type-safe monorepo layout powered by `pnpm` workspaces:
+- `apps/api`: Cloudflare Workers & Node.js serverless Hono API engine with Zod schema validation, Better Auth RBAC, and PostGIS spatial clustering.
+- `apps/web`: Vite + React 18 + Tailwind CSS single-page portal with clustered live maps (Leaflet), Ably real-time subscription, and statutory RTI Section 6(1) drafter.
+- `apps/mobile`: Expo SDK 52 React Native mobile application with NativeWind, offline SQLite outbox synchronization, location tagging, and Better Auth authentication.
+- `packages/db`: Drizzle ORM persistence layer with PostGIS spatial types, composite indexes, and Neon serverless PostgreSQL connectivity.
+- `packages/shared`: Universal domain types, canonical status transition state machine, SLA deadline calculations, and dual-language (Hindi/English) translation matrix.
+- `iot/`: Canonical IoT Edge system comprising Arduino UNO Q C++ firmware (`iot/sketch`) and Linux MPU edge agent (`iot/python`) with HMAC-SHA256 telemetry signing.
+
+### 1.1 Production Remediation & Verification Ledger (November 24, 2026)
+1. **CI / Linux Runner Resolution (TS2694)**:
+   - Fixed `apps/mobile/src/offline/useAblyTracking.ts` where `NodeJS.Timeout` caused GitHub Actions CI failure on Ubuntu runners. Replaced with portable `ReturnType<typeof setInterval>`.
+   - Verified 0 type errors across all 5 workspace packages in `pnpm turbo run typecheck --force`.
+2. **Git Hygiene & Clean Working Tree**:
+   - Purged 9,288 tracked files (`node_modules/`, `dist/`, `expo-export-test/`, legacy roots) from git index. Hardened root `.gitignore`.
+3. **Mobile Better Auth & Admin Security**:
+   - Eliminated client-side PIN bypass in `apps/mobile/app/admin-login.tsx`. Wired authentic `authClient.signIn.email()` verifying administrative roles (`admin`, `dept_head`, `ward_officer`) and rejecting citizen accounts.
+   - Updated `apps/mobile/src/lib/api-client.ts` to attach `Authorization: Bearer ${token}` from `SecureStore`.
+4. **AI Gateway Test Isolation**:
+   - Injected network-mocking `mockFetch` into `apps/api/src/__tests__/ai-gateway.test.ts` to prevent external network calls to Gemini/Groq. 100% of test suites run offline in ~5.5s.
+5. **Scheduled Cron Worker**:
+   - Exported Cloudflare Workers scheduled handler in `apps/api/src/index.ts` invoking `queueService.executeSlaCheck()` and `queueService.executeIotWatchdog()` every 15 minutes.
+6. **Database Fallback & Persistence**:
+   - Connected PostgreSQL queries in `apps/api/src/services/complaint-store.ts` (`queryComplaints`, `findClusterById`, `saveCluster`, `queryClustersByBoundingBox`, `updateClusterStatus`, `getAnalytics`) when `DATABASE_URL` is set, preserving in-memory fallback.
+7. **Environment Schema Sync**:
+   - Updated root `.env.example` to reflect the modern zero-cost free-tier stack (Neon Postgres, Cloudflare Workers/Pages, Upstash Redis/QStash, Cloudflare R2, Ably Realtime, Google Gemini / Groq).
 
 ### Key Audit Findings
 - **Database Reality**: The platform originally utilized Neo4j and SQLite, but migrated to **Firebase Firestore** (`jansetu-backend/db/firebase.js`). The Neo4j driver (`db/graph.js`) and SQLite adapter (`db/sqlite.js`) are completely unused by active routers. Frontend clients named `neo4j.ts` are actually RPC clients to Express endpoints connected to Firestore.

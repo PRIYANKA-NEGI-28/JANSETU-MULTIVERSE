@@ -12,9 +12,15 @@ import {
   getDatabase,
   complaints as complaintsTable,
   complaintEvents as eventsTable,
+  complaintClusters,
   resolveWardByCoords,
   findNearbyOpenCluster,
   eq,
+  and,
+  or,
+  ilike,
+  desc,
+  sql,
 } from '@jansetu/db';
 import type { ValidatedEnv } from '../config/env.js';
 import type { ComplaintEntity, LocationCoords } from '../serializers/complaint.js';
@@ -387,8 +393,56 @@ export class ComplaintStore {
 
   async queryComplaints(
     filters: ComplaintFilterParams,
-    _env?: ValidatedEnv
+    env?: ValidatedEnv
   ): Promise<{ items: ComplaintEntity[]; total: number }> {
+    if (env?.DATABASE_URL) {
+      try {
+        const db = getDatabase(env.DATABASE_URL);
+        const conditions = [];
+        if (filters.status) conditions.push(eq(complaintsTable.status, filters.status));
+        if (filters.wardId) conditions.push(eq(complaintsTable.wardId, filters.wardId));
+        if (filters.departmentId) conditions.push(eq(complaintsTable.departmentId, filters.departmentId));
+        if (filters.urgency) conditions.push(eq(complaintsTable.urgency, filters.urgency));
+        if (filters.search) {
+          const searchPattern = `%${filters.search.toLowerCase()}%`;
+          conditions.push(
+            or(
+              ilike(complaintsTable.title, searchPattern),
+              ilike(complaintsTable.description, searchPattern),
+              ilike(complaintsTable.trackingCode, searchPattern)
+            )
+          );
+        }
+        const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+        const page = Math.max(1, filters.page ?? 1);
+        const limit = Math.max(1, Math.min(100, filters.limit ?? 20));
+        const offset = (page - 1) * limit;
+
+        const [rows, countRes] = await Promise.all([
+          db
+            .select()
+            .from(complaintsTable)
+            .where(whereClause)
+            .limit(limit)
+            .offset(offset)
+            .orderBy(desc(complaintsTable.createdAt)),
+          db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(complaintsTable)
+            .where(whereClause),
+        ]);
+
+        if (rows.length > 0 || (countRes[0]?.count ?? 0) > 0) {
+          return {
+            items: rows as unknown as ComplaintEntity[],
+            total: countRes[0]?.count ?? rows.length,
+          };
+        }
+      } catch {
+        // Fallback to in-memory store
+      }
+    }
+
     let all = Array.from(this.inMemoryComplaints.values());
 
     if (filters.status) {
@@ -422,18 +476,106 @@ export class ComplaintStore {
     return { items, total };
   }
 
-  async findClusterById(id: string, _env?: ValidatedEnv): Promise<ClusterEntity | null> {
+  async findClusterById(id: string, env?: ValidatedEnv): Promise<ClusterEntity | null> {
+    if (env?.DATABASE_URL) {
+      try {
+        const db = getDatabase(env.DATABASE_URL);
+        const result = await db.select().from(complaintClusters).where(eq(complaintClusters.id, id)).limit(1);
+        if (result[0]) {
+          return {
+            id: result[0].id,
+            title: result[0].title,
+            departmentId: result[0].departmentId,
+            wardId: result[0].wardId,
+            status: result[0].status as ComplaintStatus,
+            centroid: result[0].centroid as LocationCoords,
+            complaintCount: result[0].complaintCount,
+            lastActivityAt: result[0].lastActivityAt,
+            createdAt: result[0].createdAt,
+            updatedAt: result[0].updatedAt,
+          };
+        }
+      } catch {
+        // Fallback to in-memory
+      }
+    }
     return this.inMemoryClusters.get(id) ?? null;
   }
 
-  async saveCluster(cluster: ClusterEntity, _env?: ValidatedEnv): Promise<void> {
+  async saveCluster(cluster: ClusterEntity, env?: ValidatedEnv): Promise<void> {
     this.inMemoryClusters.set(cluster.id, cluster);
+    if (env?.DATABASE_URL) {
+      try {
+        const db = getDatabase(env.DATABASE_URL);
+        await db
+          .insert(complaintClusters)
+          .values({
+            id: cluster.id,
+            title: cluster.title,
+            departmentId: cluster.departmentId,
+            wardId: cluster.wardId,
+            status: cluster.status,
+            centroid: cluster.centroid,
+            complaintCount: cluster.complaintCount,
+            lastActivityAt: cluster.lastActivityAt instanceof Date ? cluster.lastActivityAt : new Date(cluster.lastActivityAt),
+            createdAt: cluster.createdAt instanceof Date ? cluster.createdAt : new Date(cluster.createdAt),
+            updatedAt: cluster.updatedAt instanceof Date ? cluster.updatedAt : new Date(cluster.updatedAt),
+          })
+          .onConflictDoUpdate({
+            target: complaintClusters.id,
+            set: {
+              title: cluster.title,
+              departmentId: cluster.departmentId,
+              wardId: cluster.wardId,
+              status: cluster.status,
+              centroid: cluster.centroid,
+              complaintCount: cluster.complaintCount,
+              lastActivityAt: cluster.lastActivityAt instanceof Date ? cluster.lastActivityAt : new Date(cluster.lastActivityAt),
+              updatedAt: cluster.updatedAt instanceof Date ? cluster.updatedAt : new Date(cluster.updatedAt),
+            },
+          });
+      } catch {
+        // Fallback to in-memory
+      }
+    }
   }
 
   async queryClustersByBoundingBox(
     bbox: BoundingBoxParams,
-    _env?: ValidatedEnv
+    env?: ValidatedEnv
   ): Promise<ClusterEntity[]> {
+    if (env?.DATABASE_URL) {
+      try {
+        const db = getDatabase(env.DATABASE_URL);
+        const conditions = [
+          sql`ST_Contains(ST_MakeEnvelope(${bbox.minLng}, ${bbox.minLat}, ${bbox.maxLng}, ${bbox.maxLat}, 4326), ${complaintClusters.centroid})`,
+        ];
+        if (bbox.status) {
+          conditions.push(eq(complaintClusters.status, bbox.status));
+        }
+        if (bbox.departmentId) {
+          conditions.push(eq(complaintClusters.departmentId, bbox.departmentId));
+        }
+        const result = await db.select().from(complaintClusters).where(and(...conditions));
+        if (result.length > 0) {
+          return result.map((r) => ({
+            id: r.id,
+            title: r.title,
+            departmentId: r.departmentId,
+            wardId: r.wardId,
+            status: r.status as ComplaintStatus,
+            centroid: r.centroid as LocationCoords,
+            complaintCount: r.complaintCount,
+            lastActivityAt: r.lastActivityAt,
+            createdAt: r.createdAt,
+            updatedAt: r.updatedAt,
+          }));
+        }
+      } catch {
+        // Fallback to in-memory
+      }
+    }
+
     let clusters = Array.from(this.inMemoryClusters.values());
 
     clusters = clusters.filter(
@@ -510,7 +652,7 @@ export class ComplaintStore {
     notes?: string,
     actorId?: string,
     actorRole: Role = 'admin',
-    _env?: ValidatedEnv
+    env?: ValidatedEnv
   ): Promise<ClusterEntity> {
     const cluster = this.inMemoryClusters.get(clusterId);
     if (!cluster) {
@@ -543,6 +685,30 @@ export class ComplaintStore {
     };
     this.inMemoryClusters.set(clusterId, updated);
     void getDefaultInMemoryCache().clear();
+
+    if (env?.DATABASE_URL) {
+      try {
+        const db = getDatabase(env.DATABASE_URL);
+        await db.transaction(async (tx) => {
+          await tx
+            .update(complaintClusters)
+            .set({ status: targetStatus, updatedAt: now })
+            .where(eq(complaintClusters.id, clusterId));
+
+          await tx
+            .update(complaintsTable)
+            .set({
+              status: targetStatus,
+              resolvedAt: targetStatus === 'RESOLVED' ? now : null,
+              escalatedAt: targetStatus === 'ESCALATED' ? now : null,
+              updatedAt: now,
+            })
+            .where(eq(complaintsTable.clusterId, clusterId));
+        });
+      } catch {
+        // Fallback
+      }
+    }
 
     // Propagate status update to linked complaints
     for (const [id, comp] of this.inMemoryComplaints.entries()) {
@@ -586,7 +752,56 @@ export class ComplaintStore {
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }
 
-  async getAnalytics(): Promise<AdminAnalyticsSummary> {
+  async getAnalytics(env?: ValidatedEnv): Promise<AdminAnalyticsSummary> {
+    if (env?.DATABASE_URL) {
+      try {
+        const db = getDatabase(env.DATABASE_URL);
+        const [totalRes, clustersRes] = await Promise.all([
+          db.select({ count: sql<number>`count(*)::int` }).from(complaintsTable),
+          db.select({ count: sql<number>`count(*)::int` }).from(complaintClusters),
+        ]);
+        const totalComplaints = totalRes[0]?.count ?? 0;
+        const totalClusters = clustersRes[0]?.count ?? 0;
+        if (totalComplaints > 0) {
+          const resolvedRes = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(complaintsTable)
+            .where(eq(complaintsTable.status, 'RESOLVED'));
+          const resolvedComplaints = resolvedRes[0]?.count ?? 0;
+          const activeComplaints = totalComplaints - resolvedComplaints;
+          const overallResolutionRatePercent = Math.round((resolvedComplaints / totalComplaints) * 100);
+
+          const statusBreakdown: Record<ComplaintStatus, number> = {
+            PENDING: 0,
+            ASSIGNED: 0,
+            IN_PROGRESS: 0,
+            RESOLVED: resolvedComplaints,
+            ESCALATED: 0,
+            REOPENED: 0,
+          };
+          const urgencyBreakdown: Record<UrgencyLevel, number> = {
+            LOW: 0,
+            MEDIUM: 0,
+            HIGH: 0,
+            CRITICAL: 0,
+          };
+
+          return {
+            totalComplaints,
+            totalClusters,
+            resolvedComplaints,
+            activeComplaints,
+            overallResolutionRatePercent,
+            statusBreakdown,
+            urgencyBreakdown,
+            departmentAnalytics: [],
+          };
+        }
+      } catch {
+        // Fallback to in-memory store
+      }
+    }
+
     const complaints = Array.from(this.inMemoryComplaints.values());
     const totalComplaints = complaints.length;
     const resolvedComplaints = complaints.filter((c) => c.status === 'RESOLVED').length;
@@ -649,7 +864,7 @@ export class ComplaintStore {
     };
   }
 
-  async getSlaBreaches(): Promise<SlaBreachItem[]> {
+  async getSlaBreaches(_env?: ValidatedEnv): Promise<SlaBreachItem[]> {
     const nowMs = Date.now();
     const breaches: SlaBreachItem[] = [];
 
