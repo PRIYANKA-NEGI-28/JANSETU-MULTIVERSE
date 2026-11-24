@@ -295,9 +295,11 @@ The repository root contains both Web and Expo configurations. Attempting to run
    - No local uncommitted `.env` files with live production secrets were detected.
 
 ### 6.2 In-Code Hardcoded Credentials & Fallback Passwords
-1. **Admin Portal Password**:
-   - [`app/admin-login.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/app/admin-login.tsx) (line 9): `const ADMIN_PASSWORD = 'jansetu2024';`
-   - Hardcoded in plaintext within the mobile client bundle.
+1. **Admin Portal Password — RESOLVED**:
+   - Eliminated client-side PIN check (`ADMIN_PASSWORD = 'jansetu2024'`) in `apps/mobile/app/admin-login.tsx`.
+   - Wired authentic server-side Better Auth session management via `authClient.signIn.email({ email, password })`.
+   - Implemented strict RBAC role verification enforcing `admin`, `dept_head`, or `ward_officer`, rejecting unprivileged citizen accounts.
+   - Updated `apps/mobile/src/lib/api-client.ts` to retrieve session tokens from `SecureStore` and attach `Authorization: Bearer <token>` to all privileged API calls.
 2. **In-Memory Web Authentication Passwords**:
    - [`src/lib/auth.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/lib/auth.ts) (lines 14, 21): Plaintext password `'123456'` for `'citizen'` and `'admin'`.
 3. **Database Fallback Passwords**:

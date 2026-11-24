@@ -1,16 +1,17 @@
-import { View, Text, Pressable, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Shield, Lock, ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Shield, Lock, ArrowLeft, Eye, EyeOff, Mail } from 'lucide-react-native';
 import { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { authClient } from '../src/lib/auth-client';
 import { useLang } from '../src/contexts/LanguageContext';
-
-const ADMIN_PASSWORD = process.env.EXPO_PUBLIC_ADMIN_PIN || 'jansetu2024';
 
 export default function AdminLoginScreen() {
   const { T } = useLang();
   const router = useRouter();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
@@ -18,29 +19,56 @@ export default function AdminLoginScreen() {
   const [attempts, setAttempts] = useState(0);
 
   async function handleLogin() {
-    if (!password.trim()) {
-      setError(T.admin_login_incorrect);
+    if (!email.trim() || !password) {
+      setError(T.admin_login_incorrect || 'Please enter official email and password.');
       return;
     }
 
     setVerifying(true);
     setError('');
 
-    await new Promise(r => setTimeout(r, 500));
+    try {
+      const res = await authClient.signIn.email({
+        email: email.trim().toLowerCase(),
+        password,
+      });
 
-    if (password === ADMIN_PASSWORD) {
+      if (res.error) {
+        const newAttempts = attempts + 1;
+        setAttempts(newAttempts);
+        if (newAttempts >= 5) {
+          setError(T.admin_login_attempts);
+        } else {
+          setError(res.error.message || T.admin_login_incorrect);
+        }
+        setVerifying(false);
+        return;
+      }
+
+      const user = res.data?.user;
+      const role = (user && 'role' in user && typeof user.role === 'string') ? user.role : 'citizen';
+      const allowedRoles = ['admin', 'dept_head', 'ward_officer'];
+
+      if (!allowedRoles.includes(role)) {
+        await authClient.signOut().catch(() => {});
+        await AsyncStorage.removeItem('jansetu_admin_auth').catch(() => {});
+        await SecureStore.deleteItemAsync('jansetu_auth_token').catch(() => {});
+        setError('Access denied: Citizen accounts cannot access municipal officer dashboard.');
+        setVerifying(false);
+        return;
+      }
+
+      if (res.data && 'token' in res.data && typeof res.data.token === 'string') {
+        await SecureStore.setItemAsync('jansetu_auth_token', res.data.token);
+      }
       await AsyncStorage.setItem('jansetu_admin_auth', 'true');
       router.replace('/admin');
-    } else {
-      const newAttempts = attempts + 1;
-      setAttempts(newAttempts);
-      if (newAttempts >= 5) {
-        setError(T.admin_login_attempts);
-      } else {
-        setError(T.admin_login_incorrect);
-      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Authentication service error';
+      setError(msg);
+    } finally {
+      setVerifying(false);
     }
-    setVerifying(false);
   }
 
   return (
@@ -63,6 +91,25 @@ export default function AdminLoginScreen() {
         <Text className="text-gray-400 text-sm mb-8">{T.admin_login_subtitle}</Text>
 
         <View className="w-full max-w-sm">
+          {/* Email field */}
+          <Text className="text-sm font-semibold text-gray-300 mb-2">Officer / Admin Email</Text>
+          <View className="flex-row items-center bg-gray-800 border border-gray-700 rounded-xl mb-4">
+            <View className="pl-4">
+              <Mail size={18} color="#6b7280" />
+            </View>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="officer.indirapuram@jansetu.gov.in"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              className="flex-1 px-3 py-4 text-white text-sm"
+              placeholderTextColor="#6b7280"
+            />
+          </View>
+
+          {/* Password field */}
           <Text className="text-sm font-semibold text-gray-300 mb-2">{T.admin_login_password}</Text>
           <View className="relative">
             <View className="flex-row items-center bg-gray-800 border border-gray-700 rounded-xl">

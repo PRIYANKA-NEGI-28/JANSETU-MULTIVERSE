@@ -4,6 +4,7 @@ import type {
   DepartmentName,
   UrgencyLevel,
 } from '@jansetu/shared';
+import * as SecureStore from 'expo-secure-store';
 import { authClient } from './auth-client';
 
 export const API_BASE_URL: string = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
@@ -211,12 +212,41 @@ export async function getHeaders(): Promise<Record<string, string>> {
   };
 
   try {
-    const cookie = await authClient.getCookie();
-    if (cookie) {
-      headers.Cookie = cookie;
+    let token: string | null = null;
+    try {
+      token = await SecureStore.getItemAsync('jansetu_auth_token');
+    } catch {
+      // SecureStore may fail in SSR / test environments
+    }
+
+    if (!token) {
+      try {
+        const sessionResult = await authClient.getSession();
+        const data = sessionResult?.data as { session?: { token?: string }; token?: string } | undefined;
+        if (data?.session?.token) {
+          token = data.session.token;
+        } else if (data?.token) {
+          token = data.token;
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    try {
+      const cookie = await (authClient as { getCookie?: () => Promise<string | null> }).getCookie?.();
+      if (cookie) {
+        headers.Cookie = cookie;
+      }
+    } catch {
+      // Continue without cookie in offline / unauthenticated states
     }
   } catch {
-    // Continue without cookie in offline / unauthenticated states
+    // Continue in offline / unauthenticated states
   }
 
   return headers;

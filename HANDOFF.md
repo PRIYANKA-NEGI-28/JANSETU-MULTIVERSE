@@ -43,9 +43,10 @@ Before introducing any new features, the following high-priority bugs must be ad
    - Committed with: `chore(hygiene): purge committed build artifacts and legacy roots from git index`
 2. **Rotate Leaked Supabase Credentials**:
    - Invalidate/rotate the Anon Public Key and Service Role Key associated with `gzuvwqosslryjcldzoyl.supabase.co` in the Supabase management console.
-3. **Externalize Hardcoded Passwords**:
-   - Move `ADMIN_PASSWORD = 'jansetu2024'` in `app/admin-login.tsx` to `process.env.EXPO_PUBLIC_ADMIN_PIN`.
-   - Externalize `'123456'` in `src/lib/auth.ts` to `process.env.VITE_AUTH_DEFAULT_PASSWORD`.
+3. **[COMPLETED] Eliminate Client-Side Admin PIN & Wire Better Auth in Mobile**:
+   - `apps/mobile/app/admin-login.tsx`: Replaced client-side PIN check with `authClient.signIn.email()`, verifying `admin`/`dept_head`/`ward_officer` roles and rejecting unprivileged citizen accounts.
+   - `apps/mobile/src/lib/api-client.ts`: Updated `getHeaders()` to set `headers.Authorization = 'Bearer ${token}'` using `SecureStore.getItemAsync('jansetu_auth_token')`.
+   - Verified clean typecheck (`pnpm --filter @jansetu/mobile typecheck`) and passing test suite (`pnpm --filter @jansetu/mobile test`).
 
 ### Phase 1: High-Priority Fixes (Broken Runtimes & 404s)
 1. **Fix Broken Supabase Imports in Mobile App**:
