@@ -40,7 +40,7 @@ export function useAblyTracking(options: UseAblyTrackingOptions): UseAblyTrackin
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const ablyClientRef = useRef<Ably.Realtime | null>(null);
-  const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isMountedRef = useRef(true);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
