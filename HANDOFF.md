@@ -47,6 +47,9 @@ Before introducing any new features, the following high-priority bugs must be ad
    - `apps/mobile/app/admin-login.tsx`: Replaced client-side PIN check with `authClient.signIn.email()`, verifying `admin`/`dept_head`/`ward_officer` roles and rejecting unprivileged citizen accounts.
    - `apps/mobile/src/lib/api-client.ts`: Updated `getHeaders()` to set `headers.Authorization = 'Bearer ${token}'` using `SecureStore.getItemAsync('jansetu_auth_token')`.
    - Verified clean typecheck (`pnpm --filter @jansetu/mobile typecheck`) and passing test suite (`pnpm --filter @jansetu/mobile test`).
+4. **[COMPLETED] Isolate AI Gateway Unit Tests from Public Internet**:
+   - In `apps/api/src/__tests__/ai-gateway.test.ts:289`, added simulated `mockFetch` for privacy/logging test case, preventing unmocked live network requests with dummy keys.
+   - Verified `pnpm turbo run test --force` passes 100% of test suites (28 test files, 177 tests) across all packages without timeouts.
 
 ### Phase 1: High-Priority Fixes (Broken Runtimes & 404s)
 1. **Fix Broken Supabase Imports in Mobile App**:

@@ -287,10 +287,40 @@ describe('AI Gateway — 3-Tier Multi-Provider Resilience', () => {
   });
 
   it('Strict Security and Privacy: Logging never exposes API keys, raw prompts, or citizen PII', async () => {
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('generativelanguage.googleapis.com')) {
+        return new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        departmentCode: 'DJB',
+                        category: 'Water Supply',
+                        urgency: 'HIGH',
+                        summaryEn: 'Water pipe burst reported.',
+                        summaryHi: 'पानी की पाइप फटने की सूचना।',
+                        confidence: 0.95,
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response('Not Found', { status: 404 });
+    });
+
     const captured: AiLogEvent[] = [];
     const gateway = new AiGateway({
       geminiApiKey: 'secret-gemini-token-do-not-leak',
       groqApiKey: 'secret-groq-token-do-not-leak',
+      fetchFn: mockFetch as unknown as typeof fetch,
       onLog: (e) => captured.push(e),
     });
 
