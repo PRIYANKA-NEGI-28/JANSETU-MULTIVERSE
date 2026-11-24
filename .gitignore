@@ -184,3 +184,13 @@ Thumbs.db
 test-results/
 playwright-report/
 *.log
+
+# ------------------------------------------------------------------------------
+# 10. Legacy Pre-Monorepo Roots (Superseded by apps/ and packages/)
+# ------------------------------------------------------------------------------
+/jansetu-backend/
+/src/
+/app/
+/lib/
+/IOT/
+

@@ -1,6 +1,0 @@
-node_modules/
-.env
-uploads/
-*.sqlite
-*.log
-.DS_Store
