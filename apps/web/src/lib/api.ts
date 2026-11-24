@@ -776,4 +776,9 @@ export class ApiClient {
   };
 }
 
-export const api = new ApiClient();
+const defaultBaseUrl =
+  typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL
+    ? String(import.meta.env.VITE_API_URL)
+    : '';
+
+export const api = new ApiClient(defaultBaseUrl);

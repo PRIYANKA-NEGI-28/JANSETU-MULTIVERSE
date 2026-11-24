@@ -14,7 +14,13 @@ describe('Role-Based Route Protection & Guards', () => {
 
   it('redirects unauthenticated users to login with redirect parameter', async () => {
     render(
-      <MemoryRouter initialEntries={['/admin']}>
+      <MemoryRouter
+        initialEntries={['/admin']}
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<div data-testid="login-view">Login Page</div>} />
@@ -56,7 +62,13 @@ describe('Role-Based Route Protection & Guards', () => {
     );
 
     render(
-      <MemoryRouter initialEntries={['/admin']}>
+      <MemoryRouter
+        initialEntries={['/admin']}
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <AuthProvider>
           <Routes>
             <Route
@@ -98,7 +110,13 @@ describe('Role-Based Route Protection & Guards', () => {
     );
 
     render(
-      <MemoryRouter initialEntries={['/admin']}>
+      <MemoryRouter
+        initialEntries={['/admin']}
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <AuthProvider>
           <Routes>
             <Route

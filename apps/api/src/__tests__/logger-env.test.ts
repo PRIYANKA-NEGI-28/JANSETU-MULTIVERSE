@@ -32,6 +32,74 @@ describe('Strict Env Validation and Structured Logger', () => {
     expect(() => validateEnv({ DATABASE_URL: 'not-a-valid-url' })).toThrow(/Environment validation failed/);
   });
 
+  it('enforces hardened production secrets when NODE_ENV is production', () => {
+    // Missing DATABASE_URL
+    expect(() =>
+      validateEnv({
+        NODE_ENV: 'production',
+        BETTER_AUTH_SECRET: 'super-secure-production-better-auth-secret-string-at-least-32chars',
+        DEVICE_HMAC_SECRET: 'production-device-secret-12345',
+        QSTASH_CURRENT_SIGNING_KEY: 'sigkey_prod_12345',
+      })
+    ).toThrow(/DATABASE_URL is required/);
+
+    // Default dev BETTER_AUTH_SECRET
+    expect(() =>
+      validateEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgres://user:pass@ep-cool.us-east-1.aws.neon.tech/jansetu',
+        BETTER_AUTH_SECRET: 'jansetu-multiverse-development-secret-key-32chars',
+        DEVICE_HMAC_SECRET: 'production-device-secret-12345',
+        QSTASH_CURRENT_SIGNING_KEY: 'sigkey_prod_12345',
+      })
+    ).toThrow(/BETTER_AUTH_SECRET must be at least 32 characters and cannot use default dev secret/);
+
+    // Short BETTER_AUTH_SECRET
+    expect(() =>
+      validateEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgres://user:pass@ep-cool.us-east-1.aws.neon.tech/jansetu',
+        BETTER_AUTH_SECRET: 'too-short-secret',
+        DEVICE_HMAC_SECRET: 'production-device-secret-12345',
+        QSTASH_CURRENT_SIGNING_KEY: 'sigkey_prod_12345',
+      })
+    ).toThrow(/BETTER_AUTH_SECRET must be at least 32 characters and cannot use default dev secret/);
+
+    // Default dev DEVICE_HMAC_SECRET
+    expect(() =>
+      validateEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgres://user:pass@ep-cool.us-east-1.aws.neon.tech/jansetu',
+        BETTER_AUTH_SECRET: 'super-secure-production-better-auth-secret-string-at-least-32chars',
+        DEVICE_HMAC_SECRET: 'jansetu-iot-dev-secret',
+        QSTASH_CURRENT_SIGNING_KEY: 'sigkey_prod_12345',
+      })
+    ).toThrow(/DEVICE_HMAC_SECRET cannot use default dev secret/);
+
+    // Missing QSTASH_CURRENT_SIGNING_KEY
+    expect(() =>
+      validateEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgres://user:pass@ep-cool.us-east-1.aws.neon.tech/jansetu',
+        BETTER_AUTH_SECRET: 'super-secure-production-better-auth-secret-string-at-least-32chars',
+        DEVICE_HMAC_SECRET: 'production-device-secret-12345',
+      })
+    ).toThrow(/QSTASH_CURRENT_SIGNING_KEY is required/);
+
+    // Valid production environment
+    const validProd = validateEnv({
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgres://user:pass@ep-cool.us-east-1.aws.neon.tech/jansetu',
+      BETTER_AUTH_SECRET: 'super-secure-production-better-auth-secret-string-at-least-32chars',
+      DEVICE_HMAC_SECRET: 'production-device-secret-12345',
+      QSTASH_CURRENT_SIGNING_KEY: 'sigkey_prod_12345',
+    });
+    expect(validProd.NODE_ENV).toBe('production');
+    expect(validProd.BETTER_AUTH_SECRET).toBe(
+      'super-secure-production-better-auth-secret-string-at-least-32chars'
+    );
+  });
+
   it('redacts sensitive strings (emails and Indian phone numbers)', () => {
     const text = 'User citizen@example.com reported an issue with phone +919876543210 and 9123456789.';
     const redacted = redactSensitiveString(text);

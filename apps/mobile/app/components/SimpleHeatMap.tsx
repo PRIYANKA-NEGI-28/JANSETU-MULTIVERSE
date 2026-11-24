@@ -1,7 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useEffect, useState } from 'react';
 import Svg, { Circle, Line, Text as SvgText, G } from 'react-native-svg';
-import * as Location from 'expo-location';
 import { MapPin, Zap, AlertTriangle } from 'lucide-react-native';
 
 interface HazardReport {
@@ -80,13 +79,6 @@ const SEV_COLOR: Record<string, string> = {
   CRITICAL: '#ef4444',
 };
 
-const SEV_BG: Record<string, string> = {
-  LOW: 'bg-blue-100 text-blue-700',
-  MEDIUM: 'bg-yellow-100 text-yellow-700',
-  HIGH: 'bg-orange-100 text-orange-700',
-  CRITICAL: 'bg-red-100 text-red-700',
-};
-
 import type { ComplaintDto } from '../../src/lib/api-client';
 
 interface SimpleHeatMapProps {
@@ -141,7 +133,6 @@ export default function SimpleHeatMap({ complaints }: SimpleHeatMapProps) {
 
   const visibleClusters = clusters; // In a real app, we might filter these
 
-  const totalOpen = reports.filter(r => r.status === 'OPEN').length;
   const criticalZones = clusters.filter(c => c.severity === 'CRITICAL').length;
   const totalAffected = clusters.reduce((s, c) => s + c.count, 0);
 

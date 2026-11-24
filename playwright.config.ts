@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const apiPort = process.env.E2E_API_PORT || process.env.PORT || '3005';
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 60000,
@@ -24,16 +26,19 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'pnpm --filter @jansetu/api serve',
-      url: 'http://localhost:3000/health',
+      command: `PORT=${apiPort} pnpm --filter @jansetu/api serve`,
+      url: `http://localhost:${apiPort}/health`,
       reuseExistingServer: !process.env.CI,
       timeout: 30000,
     },
     {
-      command: 'pnpm --filter @jansetu/web dev --port 5173',
+      command: `VITE_API_URL=http://localhost:${apiPort} pnpm --filter @jansetu/web dev --port 5173`,
       url: 'http://localhost:5173',
       reuseExistingServer: !process.env.CI,
       timeout: 30000,
+      env: {
+        VITE_API_URL: `http://localhost:${apiPort}`,
+      },
     },
   ],
 });

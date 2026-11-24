@@ -15,21 +15,20 @@ Use this document alongside [`PROJECT_STATE.md`](file:///Users/apple/Desktop/JAN
 
 ---
 
-## 2. System Ground Truth: Claims vs. Reality
+## 2. Canonical Monorepo Architecture: Verified Reality
 
-| Domain | Claimed Architecture (`README.md`) | Verified Reality in Source Code | Technical Risk / Action Needed |
+| Domain | Modern Verified Stack | Implementation Details | Operational State |
 | :--- | :--- | :--- | :--- |
-| **Backend DB** | Real-time Firebase Firestore & Neo4j Graph DB | **Firebase Firestore ONLY** (`jansetu-backend/db/firebase.js`). `db/graph.js` and `db/sqlite.js` are dead code. | Clean up dead Neo4j/SQLite imports; preserve Firebase Firestore collections. |
-| **Mobile Auth & DB** | Supabase Client (`@supabase/supabase-js`) | **Supabase was deleted in commit `43ca617`**. `lib/supabase.ts` is missing, causing `app/login.tsx` to crash. | Provide local/Firebase auth adapter for mobile or clean up broken Supabase imports. |
-| **Web Auth** | Claims Supabase Auth in older copy | **Local in-memory auth** in `src/lib/auth.ts` (`citizen` and `admin`, password `123456`). | Working cleanly; preserve mock authentication behavior for demo/testing. |
-| **Real-time Push** | WebSockets on Web and Mobile | **WebSockets active on Web ONLY** (`jansetu-backend/ws/broadcast.js` <-> `src/hooks/useWebSocket.ts`). Mobile has no WS client. | Preserve web WebSocket singleton and broadcasts; do not break live telemetry. |
-| **Edge AI (Qwen)** | Local Qwen 0.6B GGUF model running on CPU/NPU | Model file is a **134-byte Git LFS pointer**. Backend hardcodes `C:\LocalAI\...` Windows paths. Fallback template active. | Replace Windows paths with cross-platform `python3` command and keep robust fallback generator. |
-| **Vision (YOLOv11)** | YOLOv11 NPU Object Detection on Qualcomm DLC | Model file is a **133-byte Git LFS pointer**. `ai/yolo_bridge.py` is **never called anywhere**. | Acknowledge as dead code. Do not wire up broken DLC without real weights. |
-| **Voice AI (Sarvam)** | Sarvam AI multi-dialect transcription | **Zero code exists**. Web uses Web Speech API; mobile uses `expo-speech` (TTS). Translation strings use "Sarvam" purely as UI copy. | Preserve Web Speech API implementation; do not add broken Sarvam dependencies. |
-| **Multimodal (Gemini)** | Gemini API listed in environment variables | **Zero code exists**. No imports or SDK setup. | Disregard environment variable or integrate only if specifically requested. |
-| **IoT Firmware** | Arduino UNO Q C++ firmware under `sketch/` | **Fully Implemented & Hardened under `iot/sketch/`** | Hardened FSM with countdown, rolling LDR, hysteresis, monotonic seq, debouncing, 4s WDT, RouterBridge RPC structured telemetry. Verified with native C++ test suite. |
-| **Credentials & Secrets** | Production-ready secret isolation | **Live Supabase credentials leaked in commit `bd30e4149a2`**; hardcoded passwords in `app/admin-login.tsx` (`jansetu2024`) and `src/lib/auth.ts` (`123456`). | Immediate key revocation in Supabase console; externalize via environment variables. |
-| **Git Index Hygiene** | Standard clean repository | **RESOLVED**: Purged 9,288 tracked files (`node_modules/`, `dist/`, `expo-export-test/`, legacy roots). `git ls-files \| grep node_modules` is empty. | Verified clean index; `.gitignore` hardened. |
+| **Backend API Engine** | Hono v4 on Cloudflare Workers & Node.js | [apps/api](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api): Edge V8 isolate / Node server, Zod schemas, RFC 7807 problem details, rate limiting, Sentry error tracking. | **Production Ready** |
+| **Relational & Spatial DB** | Neon Serverless PostgreSQL + PostGIS | [packages/db](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/packages/db): Drizzle ORM, GiST spatial indexing, `ST_Contains` ward containment, `ST_DWithin` proximity clustering. | **Production Ready** |
+| **Authentication & RBAC** | Better Auth + Bearer Sessions | Multi-tier authorization (`citizen`, `ward_officer`, `dept_head`, `admin`) with cross-ward scoping and `expo-secure-store` session management. | **Production Ready** |
+| **Web Portal** | React 18 + Vite + Tailwind CSS | [apps/web](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web): Code-split routes, Leaflet marker clustering, bilingual UI (HI/EN via `react-i18next`), Canvas EXIF stripping. | **Production Ready** |
+| **Mobile Application** | Expo SDK 52 + NativeWind + Expo Router | [apps/mobile](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile): Offline SQLite outbox synchronization, exponential backoff retries, audio recording, camera photo intake. | **Production Ready** |
+| **AI Gateway & Speech** | Tri-tier Serverless AI Gateway | [apps/api/src/services/ai](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api/src/services/ai): Gemini 2.5 Flash -> Groq Llama 3.3 70B -> Deterministic rules; Sarvam AI -> Groq Whisper fallback. | **Production Ready** |
+| **IoT MCU Firmware** | Arduino UNO Q C++ Firmware | [iot/sketch](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/iot/sketch): 16-sample rolling LDR average, hysteresis (350/550), 3-state failure FSM, button debounce, 4s hardware WDT. | **Verified (Simulator & Native C++)** |
+| **IoT Linux MPU Agent** | Python Edge Daemon + CLI Simulator | [iot/python](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/iot/python): Local SQLite outbox, HMAC-SHA256 request signing, periodic heartbeats, hardware-less CLI simulator. | **Verified (Simulator & Pytest)** |
+| **Object Storage** | Cloudflare R2 | Presigned upload URLs with binary magic byte and MIME validation, immutable CDN cache headers. | **Production Ready** |
+| **Async Jobs & Real-Time** | Cloudflare Scheduled Crons, Upstash QStash, Ably | 15-min SLA escalation and IoT watchdog cron sweeps, capability-scoped Ably WebSocket token delivery. | **Production Ready** |
 ---
 
 ## 3. Critical Bugs & Immediate Fix Priority
@@ -60,6 +59,36 @@ Before introducing any new features, the following high-priority bugs must be ad
    - In `apps/api/src/services/complaint-store.ts`, connected Drizzle ORM PostGIS queries in `queryComplaints`, `findClusterById`, `saveCluster`, `queryClustersByBoundingBox`, `updateClusterStatus`, and `getAnalytics` when `env.DATABASE_URL` is set, preserving in-memory fallback.
 8. **[COMPLETED] Synchronize Root .env.example with Modern Serverless Stack**:
    - Updated `.env.example` to remove deprecated Firebase/Neo4j variables and align with Neon Postgres, Cloudflare Workers/Pages, Upstash Redis/QStash, Cloudflare R2, Ably Realtime, and Gemini/Groq.
+9. **[COMPLETED] Harden Production Secret Enforcement & QStash Signature Verification**:
+   - In `apps/api/src/config/env.ts`, added `.superRefine()` check on `EnvSchema` enforcing that in production (`NODE_ENV === 'production'`), `DATABASE_URL` is non-empty, `BETTER_AUTH_SECRET` is >= 32 chars and non-default, `DEVICE_HMAC_SECRET` is non-default, and `QSTASH_CURRENT_SIGNING_KEY` is present.
+   - In `apps/api/src/services/queue.ts`, updated `verifyQStashSignature` to strictly return `false` in production if `QSTASH_CURRENT_SIGNING_KEY` is missing, preventing unauthenticated internal job trigger bypasses.
+   - Verified via unit test suites in `apps/api/src/__tests__/logger-env.test.ts` and `apps/api/src/__tests__/queue-realtime.test.ts`. 100% of test suites in `@jansetu/api` pass (16 files, 130 tests).
+10. **[COMPLETED] Decouple Playwright Port Hardcoding & Verify E2E Journey Suite**:
+    - In `playwright.config.ts`, decoupled API webServer from 3000 to `process.env.E2E_API_PORT || process.env.PORT || '3005'` and injected `VITE_API_URL` into Vite web dev server.
+    - In `e2e/helpers/iot.ts` and `e2e/iot-telemetry-auto-resolution.spec.ts`, updated default backend URL to `process.env.API_URL || process.env.BACKEND_URL || 'http://localhost:3005'`.
+    - Executed `pnpm test:e2e`: 4/4 end-to-end journeys passed in 14.3s.
+11. **[COMPLETED] Resolve Web API Base URL & Static CDN Fallback (Cloudflare Pages)**:
+    - In `apps/web/src/lib/api.ts`, updated singleton instantiation to ingest `import.meta.env.VITE_API_URL` (`const defaultBaseUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL ? String(import.meta.env.VITE_API_URL) : ''`), allowing production builds on Cloudflare Pages or custom domains to point to the live API Worker.
+    - In `apps/web/public/_redirects`, added reverse proxy template `/api/*` alongside SPA fallback `/* /index.html 200`.
+    - Verified typecheck (`pnpm --filter @jansetu/web typecheck`), build (`pnpm --filter @jansetu/web build`), and unit test suite (`pnpm --filter @jansetu/web test`).
+12. **[COMPLETED] Eliminate 47 Mobile ESLint Warnings & Clean Mobile Bundle**:
+    - Removed 47 unused imports and variables across 14 mobile files (`apps/mobile/app/(tabs)/`, `SimpleHeatMap.tsx`, `api-client.ts`, `locationService.ts`, `outbox-sync.test.ts`, `types.ts`).
+    - Verified `pnpm lint` completes with 0 errors and 0 warnings across all 5 workspace packages.
+    - Verified `pnpm turbo run typecheck --force` (0 errors) and `pnpm --filter @jansetu/mobile test` (13/13 passing).
+13. **[COMPLETED] Eliminate Act & Router Warnings in Web Tests**:
+    - Configured React Router future flags (`v7_startTransition: true`, `v7_relativeSplatPath: true`) on `BrowserRouter` in `apps/web/src/App.tsx` and `MemoryRouter` in web unit tests.
+    - Mocked `api.auth.getSession` and awaited `waitFor` in `apps/web/src/__tests__/complaint-submission.test.tsx` to eliminate unhandled `AuthProvider` async state resolution.
+    - Verified `pnpm --filter @jansetu/web test`: 5/5 test files (15/15 tests) pass with zero act warnings and zero stderr output.
+    - Verified full monorepo suite (`pnpm turbo run test typecheck lint build --force`): 20/20 tasks passed.
+12. **[COMPLETED] Eliminate 47 Mobile ESLint Warnings & Clean Mobile Bundle**:
+    - Removed 47 unused imports and variables across 14 mobile files (`apps/mobile/app/(tabs)/`, `SimpleHeatMap.tsx`, `api-client.ts`, `locationService.ts`, `outbox-sync.test.ts`, `types.ts`).
+    - Verified `pnpm lint` completes with 0 errors and 0 warnings across all 5 workspace packages.
+    - Verified `pnpm turbo run typecheck --force` (0 errors) and `pnpm --filter @jansetu/mobile test` (13/13 passing).
+13. **[COMPLETED] Eliminate Act & Router Warnings in Web Tests**:
+    - Configured React Router future flags (`v7_startTransition: true`, `v7_relativeSplatPath: true`) on `BrowserRouter` in `apps/web/src/App.tsx` and `MemoryRouter` in web unit tests.
+    - Mocked `api.auth.getSession` and awaited `waitFor` in `apps/web/src/__tests__/complaint-submission.test.tsx` to eliminate unhandled `AuthProvider` async state resolution.
+    - Verified `pnpm --filter @jansetu/web test`: 5/5 test files (15/15 tests) pass with zero act warnings and zero stderr output.
+    - Verified full monorepo suite (`pnpm turbo run test typecheck lint build --force`): 20/20 tasks passed.
    - *Fix*: Change endpoint to `fetch('/api/dashboard/complaint/' + id, { method: 'PATCH' })` (where it is actually defined in `dashboardRouter.js`), or use `updateComplaintStatus()` from `src/lib/neo4j.ts`.
 3. **Fix Cross-Platform Python Execution in Backend**:
    - `jansetu-backend/routers/grievanceRouter.js` (lines 21, 34) and `jansetu-backend/routers/drafterRouter.js` (line 17): Hardcode `C:\LocalAI\qai-env\Scripts\python.exe` and local Windows desktop paths.

@@ -192,5 +192,23 @@ playwright-report/
 /src/
 /app/
 /lib/
+/IOT/
+/app.json
+/babel.config.js
+/global.css
+/index.html
+/metro.config.js
+/nativewind-env.d.ts
+/postcss.config.js
+/tailwind.config.expo.js
+/tailwind.config.js
+/tsconfig.app.json
+/tsconfig.expo.json
+/tsconfig.node.json
+/vite.config.ts
+/test_qwen.py
+/dummy.jpg
+/admin_ui_summary.md
+/README_EXPO.md
 
 

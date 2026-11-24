@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, View, Text, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
-import { useRouter, Redirect } from 'expo-router';
-import { Shield, LogOut, Zap, MapPin, Users, CheckCircle, Clock, AlertTriangle } from 'lucide-react-native';
+import { Redirect } from 'expo-router';
+import { LogOut, Zap, Users, CheckCircle, Clock, AlertTriangle } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getAllComplaints,
@@ -13,7 +13,6 @@ import SimpleHeatMap from '../components/SimpleHeatMap';
 
 export default function AdminScreen() {
   const { T } = useLang();
-  const router = useRouter();
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [complaints, setComplaints] = useState<readonly Neo4jComplaint[]>([]);
   const [loading, setLoading] = useState(true);

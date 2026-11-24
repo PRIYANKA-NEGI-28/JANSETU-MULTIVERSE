@@ -37,7 +37,12 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <LangProvider>
           <AuthProvider>
-            <BrowserRouter>
+            <BrowserRouter
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true,
+              }}
+            >
               <Routes>
                 <Route element={<AppShell />}>
                   {/* Public routes */}

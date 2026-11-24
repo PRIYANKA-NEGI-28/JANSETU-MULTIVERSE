@@ -1,2 +1,6 @@
+# Cloudflare Pages API Reverse Proxy (Optional fallback when same-origin)
+# /api/*  https://jansetu-api-prod.workers.dev/api/:splat  200
+
 # Cloudflare Pages SPA Client-Side Routing Fallback
-/* /index.html 200
+/*    /index.html   200
+

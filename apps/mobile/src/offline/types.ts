@@ -1,4 +1,4 @@
-import type { ComplaintDto, CreateComplaintInput } from '../lib/api-client';
+import type { CreateComplaintInput } from '../lib/api-client';
 
 export type SyncStatus = 'PENDING' | 'SYNCING' | 'SYNCED' | 'FAILED';
 

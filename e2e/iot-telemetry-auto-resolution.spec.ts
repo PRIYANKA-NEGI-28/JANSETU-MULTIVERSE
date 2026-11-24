@@ -6,7 +6,8 @@ test.describe('IoT Streetlight Telemetry & Auto-Resolution Journey', () => {
     page,
     request,
   }) => {
-    const backendUrl = 'http://localhost:3000';
+    const backendUrl =
+      process.env.API_URL || process.env.BACKEND_URL || 'http://localhost:3005';
     const deviceUid = 'UNO_Q_01';
 
     // 1. Send simulated FAULT event signed with HMAC-SHA256

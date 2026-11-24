@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { resolveWard, type WardResolutionDto } from './api-client';
+import { resolveWard } from './api-client';
 
 export interface LocationTagResult {
   readonly latitude: number;

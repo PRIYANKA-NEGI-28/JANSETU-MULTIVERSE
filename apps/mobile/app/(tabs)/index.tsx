@@ -1,10 +1,9 @@
-import { ScrollView, View, Text, Pressable, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView, View, Text, Pressable } from 'react-native';
 import { Link } from 'expo-router';
 import {
-  MapPin, Brain, GitBranch, Bell, BarChart2, Shield, Scale, Camera,
+  MapPin, Brain, GitBranch, Bell, BarChart2, Shield, Scale,
   ArrowRight, FileText, TrendingUp, Users, CheckCircle, AlertTriangle, Clock,
-  Lightbulb, Truck, Droplet, Circle, Construction, Zap, Activity
+  Lightbulb, Truck, Droplet, Construction, Zap, Activity
 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { getAllComplaints, type Neo4jComplaint } from '../../src/lib/api-client';
@@ -48,7 +47,7 @@ export default function HomeScreen() {
   const { T } = useLang();
   const [stats, setStats] = useState({ total: 0, resolved: 0, pending: 0, escalated: 0 });
   const [recentComplaints, setRecentComplaints] = useState<readonly Neo4jComplaint[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {

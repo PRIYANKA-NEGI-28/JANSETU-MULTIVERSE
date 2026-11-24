@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
-import { LanguageProvider, LanguageProvider as LangProvider } from '../src/contexts/LanguageContext';
+import { LanguageProvider } from '../src/contexts/LanguageContext';
 import { AuthProvider } from '../src/contexts/AuthContext';
 import { OfflineSyncProvider } from '../src/offline';
 import '../global.css';

@@ -7,7 +7,6 @@ import {
   processSingleOutboxItem,
   processOutboxQueue,
   MAX_SYNC_RETRIES,
-  BASE_RETRY_DELAY_MS,
   MAX_RETRY_DELAY_MS,
 } from '../syncEngine';
 import type { CreateComplaintInput } from '../../lib/api-client';
@@ -87,7 +86,7 @@ describe('Offline Outbox & Sync Engine', () => {
     it('transitions PENDING -> SYNCED upon successful submission and caches the complaint', async () => {
       const item = await enqueueComplaint(mockComplaintInput, [], undefined, db);
 
-      const customCreator = async (payload: CreateComplaintInput) => {
+      const customCreator = async (_payload: CreateComplaintInput) => {
         return {
           trackingCode: 'JS-2026-DEL-8888',
           id: 'complaint_8888',

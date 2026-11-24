@@ -7,31 +7,22 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
-  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import {
-  FileText,
   CheckCircle,
   Copy,
   Sparkles,
   Scale,
   Download,
-  Share2,
   ChevronRight,
   ChevronLeft,
   Link2,
-  Building2,
-  User,
-  ShieldCheck,
-  AlertCircle,
-  RotateCcw,
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { useLang } from '../../src/contexts/LanguageContext';
 import {
   createRtiApplication,
   getRtiPdfUrl,
@@ -73,8 +64,6 @@ const PUBLIC_AUTHORITIES = [
 ];
 
 export default function RTIScreen() {
-  const { T } = useLang();
-  const router = useRouter();
   const params = useLocalSearchParams<{ clusterId?: string; trackingCode?: string; title?: string }>();
   const { cachedComplaints } = useOfflineSync();
 

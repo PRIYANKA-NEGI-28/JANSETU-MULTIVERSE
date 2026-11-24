@@ -1,14 +1,21 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SubmitComplaintView from '../pages/SubmitComplaintView.js';
 import { AuthProvider } from '../contexts/AuthContext.js';
 import { LangProvider } from '../contexts/LangContext.js';
+import { api } from '../lib/api.js';
 import '../lib/i18n.js';
 
 function renderSubmitComplaintView() {
   return render(
-    <MemoryRouter initialEntries={['/submit']}>
+    <MemoryRouter
+      initialEntries={['/submit']}
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <LangProvider>
         <AuthProvider>
           <SubmitComplaintView />
@@ -21,13 +28,16 @@ function renderSubmitComplaintView() {
 describe('Complaint Submission Form & Client Validation', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.spyOn(api.auth, 'getSession').mockRejectedValue(new Error('Unauthenticated'));
   });
 
-  it('renders required form inputs and submit button', () => {
+  it('renders required form inputs and submit button', async () => {
     renderSubmitComplaintView();
 
-    expect(screen.getByLabelText(/Complaint Details/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Submit Grievance/i })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Complaint Details/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Submit Grievance/i })).toBeInTheDocument();
+    });
   });
 
   it('validates minimum description length and surfaces accessible field error', async () => {

@@ -22,7 +22,8 @@ export interface IotEventResponse {
 }
 
 export async function sendIotEvent(options: SendIotEventOptions): Promise<IotEventResponse> {
-  const backendUrl = options.backendUrl || 'http://localhost:3000';
+  const backendUrl =
+    options.backendUrl || process.env.API_URL || process.env.BACKEND_URL || 'http://localhost:3005';
   const deviceUid = options.deviceUid || 'UNO_Q_01';
   const seq = options.seq || Math.floor(Math.random() * 10000) + 1;
   const secret = options.secret || process.env.DEVICE_HMAC_SECRET || 'jansetu-iot-dev-secret';

@@ -69,6 +69,7 @@ export class QueueService {
     env?: ValidatedEnv
   ): Promise<boolean> {
     const signingKey = this.currentSigningKey || env?.QSTASH_CURRENT_SIGNING_KEY;
+    const isProduction = (env?.NODE_ENV ?? process.env.NODE_ENV) === 'production';
 
     // Strict validation when signing key is configured
     if (signingKey) {
@@ -96,7 +97,22 @@ export class QueueService {
       }
     }
 
+    // If signing key is missing:
+    // In production, strictly reject unauthenticated requests
+    if (isProduction) {
+      return false;
+    }
+
     // In local dev/test without QStash signing keys:
+    // Log a warning and only accept if process.env.NODE_ENV !== 'production'
+    if (process.env.NODE_ENV === 'production') {
+      return false;
+    }
+
+    console.warn(
+      '[QueueService] QSTASH_CURRENT_SIGNING_KEY is unset; permitting non-production webhook bypass'
+    );
+
     // Reject explicit mock invalid/tampered signatures for testing purposes
     if (signature === 'invalid-signature' || signature === 'tampered') {
       return false;

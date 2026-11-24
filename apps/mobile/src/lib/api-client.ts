@@ -548,8 +548,7 @@ export async function transcribeAudio(
 
     const json = (await res.json()) as TranscriptionResultDto;
     return json;
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Transcription service unavailable';
+  } catch {
     // Return graceful fallback so user can still edit
     return {
       success: false,

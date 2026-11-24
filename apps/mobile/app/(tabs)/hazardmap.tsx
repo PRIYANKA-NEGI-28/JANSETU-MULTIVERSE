@@ -11,19 +11,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import {
-  MapPin,
   Layers,
-  AlertTriangle,
   Zap,
-  CheckCircle,
-  Clock,
-  Filter,
   Users,
   X,
   FileText,
   RotateCcw,
-  Sparkles,
-  ChevronRight,
   ShieldAlert,
 } from 'lucide-react-native';
 import {
@@ -31,7 +24,6 @@ import {
   type PublicClusterDto,
   type IoTStreetlightAnomalyDto,
 } from '../../src/lib/api-client';
-import { useLang } from '../../src/contexts/LanguageContext';
 
 // Canonical fallback data ensuring map renders rich civic data across Delhi NCR
 const SEED_CLUSTERS: readonly PublicClusterDto[] = [
@@ -138,13 +130,12 @@ const CATEGORY_FILTERS = [
 ];
 
 export default function HazardMapScreen() {
-  const { T } = useLang();
   const router = useRouter();
 
   const [clusters, setClusters] = useState<readonly PublicClusterDto[]>(SEED_CLUSTERS);
   const [iotFaults] = useState<readonly IoTStreetlightAnomalyDto[]>(SEED_IOT_FAULTS);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [selectedWard, setSelectedWard] = useState<string>('ALL');
+  const [selectedWard] = useState<string>('ALL');
   const [loading, setLoading] = useState<boolean>(false);
   const [activeItem, setActiveItem] = useState<{
     readonly type: 'CLUSTER' | 'IOT';

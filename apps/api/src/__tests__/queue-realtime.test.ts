@@ -73,6 +73,19 @@ describe('Upstash QStash & Ably Real-Time Integration', () => {
       expect(json['success']).toBe(true);
       expect(typeof json['totalChecked']).toBe('number');
     });
+
+    it('strictly rejects when in production environment and signing key is missing', async () => {
+      const queue = new QueueService();
+      const result = await queue.verifyQStashSignature(
+        'any-signature',
+        JSON.stringify({}),
+        'http://localhost:3000/api/v1/internal/jobs/sla-check',
+        {
+          NODE_ENV: 'production',
+        } as unknown as import('../config/env.js').ValidatedEnv
+      );
+      expect(result).toBe(false);
+    });
   });
 
   describe('Asynchronous AI Triage Job (POST /api/v1/internal/jobs/triage)', () => {

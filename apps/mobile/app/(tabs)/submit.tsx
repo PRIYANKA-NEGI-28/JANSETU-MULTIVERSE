@@ -12,7 +12,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   Brain,
-  MapPin,
   AlertTriangle,
   CheckCircle,
   ArrowRight,
@@ -22,15 +21,12 @@ import {
   ImageIcon,
   X,
   Navigation,
-  RefreshCw,
-  Clock,
   Sparkles,
   WifiOff,
 } from 'lucide-react-native';
 import { useState, useRef, useEffect } from 'react';
 import {
   createComplaint,
-  type ComplaintDto,
 } from '../../src/lib/api-client';
 import { useOfflineSync } from '../../src/offline';
 import type { UrgencyLevel } from '@jansetu/shared';

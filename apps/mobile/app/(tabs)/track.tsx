@@ -13,7 +13,6 @@ import { useRouter } from 'expo-router';
 import {
   Search,
   MapPin,
-  Users,
   Clock,
   CheckCircle,
   AlertTriangle,
@@ -21,7 +20,6 @@ import {
   UserCheck,
   RefreshCw,
   GitBranch,
-  ShieldAlert,
   Network,
   Wifi,
   WifiOff,
@@ -41,7 +39,6 @@ import { useLang } from '../../src/contexts/LanguageContext';
 import {
   useOfflineSync,
   useAblyTracking,
-  type OutboxItem,
 } from '../../src/offline';
 
 const STATUS_CONFIG: Record<

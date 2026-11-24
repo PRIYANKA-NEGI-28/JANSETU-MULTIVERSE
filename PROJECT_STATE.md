@@ -34,6 +34,32 @@ JanSetu Multiverse has transitioned to a fully modular, type-safe monorepo layou
    - Connected PostgreSQL queries in `apps/api/src/services/complaint-store.ts` (`queryComplaints`, `findClusterById`, `saveCluster`, `queryClustersByBoundingBox`, `updateClusterStatus`, `getAnalytics`) when `DATABASE_URL` is set, preserving in-memory fallback.
 7. **Environment Schema Sync**:
    - Updated root `.env.example` to reflect the modern zero-cost free-tier stack (Neon Postgres, Cloudflare Workers/Pages, Upstash Redis/QStash, Cloudflare R2, Ably Realtime, Google Gemini / Groq).
+8. **Hardened Production Secret Enforcement & QStash Signature Verification**:
+   - In `apps/api/src/config/env.ts`, added `.superRefine()` check on `EnvSchema` enforcing that in production (`NODE_ENV === 'production'`):
+     - `DATABASE_URL` is defined and non-empty.
+     - `BETTER_AUTH_SECRET` is at least 32 characters and does not match the default development secret.
+     - `DEVICE_HMAC_SECRET` is set and does not match the default development secret (`jansetu-iot-dev-secret`).
+     - `QSTASH_CURRENT_SIGNING_KEY` is defined and non-empty.
+   - In `apps/api/src/services/queue.ts`, updated `verifyQStashSignature` to strictly return `false` in production when `QSTASH_CURRENT_SIGNING_KEY` is omitted, eliminating unauthenticated internal job webhook bypasses.
+   - Added unit test coverage in `apps/api/src/__tests__/logger-env.test.ts` and `apps/api/src/__tests__/queue-realtime.test.ts`. All 16 test files (130 tests) in `@jansetu/api` pass.
+9. **Playwright E2E Port Decoupling & Full-Stack Journey Verification**:
+   - In `playwright.config.ts`, decoupled the API webServer port from hardcoded 3000 to `process.env.E2E_API_PORT || process.env.PORT || '3005'` and injected `VITE_API_URL` into Vite web dev server.
+   - In `e2e/helpers/iot.ts` and `e2e/iot-telemetry-auto-resolution.spec.ts`, updated default backend URL to `process.env.API_URL || process.env.BACKEND_URL || 'http://localhost:3005'`.
+   - Verified 100% passing E2E test runs (`pnpm test:e2e`): 4/4 journeys passed in 14.3s (Citizen Complaint Lifecycle, IoT Telemetry Auto-Resolution, Officer Queue Resolution, RTI Section 6(1) Drafter).
+10. **Web Production API URL Resolution & Static Routing (Cloudflare Pages)**:
+   - In `apps/web/src/lib/api.ts`, updated singleton instantiation to ingest `import.meta.env.VITE_API_URL` (`const defaultBaseUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL ? String(import.meta.env.VITE_API_URL) : ''`).
+   - In `apps/web/public/_redirects`, documented optional `/api/*` reverse proxy rule for same-origin routing while maintaining clean SPA fallback `/* /index.html 200`.
+   - Verified clean compilation (`pnpm --filter @jansetu/web typecheck`), production bundle build (`pnpm --filter @jansetu/web build`), and passing test suite (`15/15 tests passing`).
+11. **Mobile ESLint Warning Purge & Bundle Cleanup**:
+   - Cleaned up 47 unused imports (`View`, `Text`, `StyleSheet`, `Shield`, `MapPin`, `AlertTriangle`, `CheckCircle`, `Clock`, `Filter`, `Sparkles`, `ChevronRight`, `ActivityIndicator`, `SafeAreaView`, `Camera`, `Circle`, `Share`, `FileText`, `Share2`, `Building2`, `User`, `ShieldCheck`, `AlertCircle`, `RotateCcw`, `RefreshCw`, `Users`, `ShieldAlert`, `LangProvider`, `Location`, `Alert`) and unreferenced variables across `apps/mobile/app/(tabs)/`, `SimpleHeatMap.tsx`, `api-client.ts`, `locationService.ts`, and offline tests/types.
+   - Verified zero warnings and zero errors across all 5 workspace projects in `pnpm lint`.
+   - Verified 100% typecheck pass (`pnpm turbo run typecheck --force`) and passing mobile offline test suite (`13/13 tests passing`).
+12. **Web Test Suite Warning Elimination (Act & React Router v7)**:
+   - In `apps/web/src/App.tsx`, configured `future={{ v7_startTransition: true, v7_relativeSplatPath: true }}` on `BrowserRouter`.
+   - In `apps/web/src/__tests__/complaint-submission.test.tsx` and `apps/web/src/__tests__/route-protection.test.tsx`, configured matching `future` flags on all `MemoryRouter` instances.
+   - In `apps/web/src/__tests__/complaint-submission.test.tsx`, added `vi.spyOn(api.auth, 'getSession').mockRejectedValue(new Error('Unauthenticated'))` in `beforeEach` and awaited `waitFor(...)` on initial render to cleanly handle `AuthProvider` session checks.
+   - Verified 100% clean test execution (`pnpm --filter @jansetu/web test`): 5/5 test files (15/15 tests) pass in 990ms with zero act warnings, zero future flag warnings, and zero stderr output.
+   - Verified full monorepo pipeline (`pnpm turbo run test typecheck lint build --force`): 20/20 tasks successful in 18.6s.
 
 ### Key Audit Findings
 - **Database Reality**: The platform originally utilized Neo4j and SQLite, but migrated to **Firebase Firestore** (`jansetu-backend/db/firebase.js`). The Neo4j driver (`db/graph.js`) and SQLite adapter (`db/sqlite.js`) are completely unused by active routers. Frontend clients named `neo4j.ts` are actually RPC clients to Express endpoints connected to Firestore.
@@ -44,118 +70,16 @@ JanSetu Multiverse has transitioned to a fully modular, type-safe monorepo layou
 
 ---
 
-## 2. Verified File-by-File Architecture Inventory
+## 2. Canonical Monorepo Architecture Inventory
 
-### 2.1 Root Configuration & Build Files
-- [`package.json`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/package.json): Web frontend manifest for Vite + React 18. Defines scripts: `dev`, `build`, `lint`, `preview`, `typecheck`. Dependencies include Leaflet, React-Leaflet, Lucide-React, Tailwind CSS.
-- [`package-expo.json`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/package-expo.json): Expo React Native manifest (`jansetu-mobile`). Configured for Expo SDK 52, NativeWind 4.1, Expo Router 4.0.
-- [`package-web-backup.json`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/package-web-backup.json): Legacy web manifest backup.
-- [`vite.config.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/vite.config.ts): Vite build configuration with React plugin and proxy mapping `/api` -> `http://localhost:3000`.
-- [`app.json`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/app.json): Expo application manifest for `JanSetu` (`com.jansetu.app`). Defines permissions for `RECORD_AUDIO`, `ACCESS_FINE_LOCATION`, and `CAMERA`.
-- [`tsconfig.json`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/tsconfig.json): Root TypeScript project references configuration.
-- [`tsconfig.app.json`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/tsconfig.app.json): Strict TypeScript configuration for web code in `src/`.
-- [`tsconfig.expo.json`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/tsconfig.expo.json): TypeScript configuration for mobile code in `app/` and `lib/`.
-- [`tsconfig.node.json`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/tsconfig.node.json): TypeScript configuration for Vite/Node toolchain.
-- [`metro.config.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/metro.config.js): Expo Metro bundler config wrapped with NativeWind.
-- [`babel.config.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/babel.config.js): Babel preset configuration for Expo + NativeWind.
-- [`tailwind.config.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/tailwind.config.js): Web Tailwind configuration scanning `index.html` and `src/**/*.{js,ts,jsx,tsx}`.
-- [`tailwind.config.expo.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/tailwind.config.expo.js): Mobile Tailwind configuration scanning `app/**` and `lib/**`.
-- [`global.css`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/global.css): Global CSS containing Tailwind utility directives.
-- [`index.html`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/index.html): Web entry HTML mounting `#root` to `src/main.tsx`.
-
-### 2.2 Backend Engine (`jansetu-backend/`)
-- [`jansetu-backend/server.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/server.js): Server entrypoint. Boots Express app, initializes Firebase via `initFirebase()`, attaches WebSocket server via `initWebSocket(server)`, sets hourly auto-escalation interval (`runEscalationCheck()`), binds routers, and listens on `0.0.0.0:3000`.
-- [`jansetu-backend/package.json`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/package.json): Backend dependencies: `express`, `firebase-admin`, `ws`, `cors`, `multer`, `dotenv`, `better-sqlite3`, `neo4j-driver`.
-- [`jansetu-backend/routers/complaintRouter.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/routers/complaintRouter.js): Handles `POST /api/complaint`. Parses multipart/form-data images via Multer, maps field names, creates complaints in Firestore, and broadcasts `new_complaint` to WebSocket clients.
-- [`jansetu-backend/routers/sensorRouter.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/routers/sensorRouter.js):
-  - `GET /api/sensor`: Returns active `FAULT` sensor anomalies from Firestore.
-  - `POST /api/sensor`: Ingests IoT payload (`device_id`, `status`, `type`). If `FAULT`, creates both an automated complaint and a sensor alert, broadcasting `new_complaint` and `new_sensor_alert`. Ignores `RESOLVED` status.
-- [`jansetu-backend/routers/dashboardRouter.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/routers/dashboardRouter.js):
-  - `POST /api/dashboard`: RPC action dispatcher (`getComplaintByNumber`, `getAllComplaints`, `getUserComplaints`, `seedOfficers`, `getAllOfficers`, `getOfficersByDepartment`, `assignOfficer`, `escalateComplaint`, `updateStatus`, `runEscalationCheck`, `getDepartmentStats`, `getGraphStats`). Broadcasts `complaint_updated` on state changes.
-  - `GET /api/dashboard`: Aggregates active complaints list and summary statistics.
-  - `PATCH /api/dashboard/complaint/:id`: Updates complaint status and broadcasts update.
-  - `GET /api/dashboard/clear`: Wipes Firestore collections (`complaints`, `sensor_alerts`, `officers`, `assignments`).
-- [`jansetu-backend/routers/adminRouter.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/routers/adminRouter.js):
-  - `GET /api/admin/stats/department`: Returns department resolution metrics.
-  - `GET /api/admin/stats/graph`: Returns complaint cluster and hotspot counts.
-  - `GET /api/admin/dashboard`: Combined admin summary data.
-  - `POST /api/admin/escalation/check`: Triggers manual escalation scan.
-- [`jansetu-backend/routers/drafterRouter.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/routers/drafterRouter.js): `POST /api/drafter`. Spawns `ai/rti_drafter.py` to generate legal Section 6(1) RTI applications, saves draft in Firestore, and returns result.
-- [`jansetu-backend/routers/grievanceRouter.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/routers/grievanceRouter.js):
-  - `POST /api/grievance`: Spawns `ai/grievance_officer.py` to parse messy citizen text into structured 3-section legal grievance drafts, saves to Firestore, and returns JSON.
-  - `GET /api/grievance/history`: Retrieves past grievance drafts.
-- [`jansetu-backend/db/firebase.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/db/firebase.js): Primary persistence layer. Reads service account from `FIREBASE_SERVICE_ACCOUNT` env var or `firebase-service-account.json`. Operates collections: `complaints`, `sensor_alerts`, `officers`, `assignments`, `grievance_drafts`, `rti_drafts`. Implements SLA auto-escalation (>48 hrs) and officer seeding. Includes mock mode fallback.
-- [`jansetu-backend/db/graph.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/db/graph.js): **Dead Code.** Contains Neo4j connection pool and Cypher queries. Not invoked by any active router.
-- [`jansetu-backend/db/sqlite.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/db/sqlite.js): **Dead Code.** Contains SQLite table schemas and synchronous queries. Not invoked by any active router.
-- [`jansetu-backend/db/dateSanitizer.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/db/dateSanitizer.js): Helper middleware to sanitize Neo4j date objects in Express JSON responses.
-- [`jansetu-backend/ws/broadcast.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/ws/broadcast.js): Singleton WebSocket server attached to HTTP server. Runs 30-second ping/pong heartbeat and exposes `broadcast(type, data)`.
-- [`jansetu-backend/middleware/upload.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/middleware/upload.js): Multer disk storage handler saving uploaded complaint attachments into `jansetu-backend/uploads/` with a 10MB limit.
-- [`jansetu-backend/utils/catchAsync.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/utils/catchAsync.js): Express middleware wrapper forwarding asynchronous promise errors to `next()`.
-- [`jansetu-backend/ai/grievance_officer.py`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/ai/grievance_officer.py): Grievance NLP pipeline. Strips conversational fluff, extracts dates/locations/remedies via regex, classifies against 15 municipal departments, escalates urgency, attempts local `llama_cpp` inference, and falls back to deterministic templates generating Analysis Report, English Draft, and Hindi Draft.
-- [`jansetu-backend/ai/rti_drafter.py`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/ai/rti_drafter.py): RTI drafting script. Formulates discrete Section 6(1) RTI queries, checks BPL exemptions, and produces dual-language statutory applications (English and Hindi).
-- [`jansetu-backend/ai/llm_bridge.py`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/ai/llm_bridge.py): **Dead Code.** Attempts LM Studio API call at `localhost:1234` or simulated fallback. Not imported by any router.
-- [`jansetu-backend/ai/yolo_bridge.py`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/ai/yolo_bridge.py): **Dead Code.** Attempts ONNX Runtime execution with Qualcomm QNN on DLC model or simulated keyword fallback. Not imported by any router.
-- [`jansetu-backend/clear_data.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/clear_data.js): Utility script to purge legacy Neo4j and SQLite records.
-- [`jansetu-backend/test_escalation.js`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/jansetu-backend/test_escalation.js): Utility script to insert 50-hour-old test complaints into Firestore to test auto-escalation.
-
-### 2.3 Web Frontend (`src/`)
-- [`src/main.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/main.tsx): Client entrypoint. Wraps root with `ErrorBoundary`, `ToastProvider`, and `App`.
-- [`src/App.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/App.tsx): Main application container. Manages local user authentication state (`AuthUser`), preloader splash animation, navigation routing between 8 pages, `LocationProvider`, `DashboardProvider`, and responsive headers/navbars.
-- [`src/types/index.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/types/index.ts): TypeScript definitions for pages, locations, and components.
-- [`src/lib/auth.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/lib/auth.ts): In-memory authentication provider with hardcoded credentials (`citizen` / `admin`, password `123456`).
-- [`src/lib/neo4j.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/lib/neo4j.ts): Dashboard RPC client communicating with backend endpoint `/api/dashboard`. Dispatches calls for complaints, departments, graphs, officers, and escalations.
-- [`src/lib/aiAnalyzer.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/lib/aiAnalyzer.ts): Pure client-side rule-based NLP engine. Matches keywords against 15 civic issue types, scores urgency based on safety hazards, detects Hindi/English, and generates concise summaries.
-- [`src/lib/locations.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/lib/locations.ts): Municipal dataset covering 50+ localities across Delhi and Ghaziabad mapped to wards and coordinates.
-- [`src/lib/i18n.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/lib/i18n.ts): Complete bilingual (English & Hindi) translation matrix for all web UI views.
-- [`src/lib/langContext.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/lib/langContext.tsx): React context for language toggle ('en' | 'hi'), persisted in `localStorage`.
-- [`src/contexts/LocationContext.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/contexts/LocationContext.tsx): React context managing browser geolocation permissions and GPS coordinates.
-- [`src/contexts/ToastContext.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/contexts/ToastContext.tsx): UI toast notification provider with auto-dismiss.
-- [`src/contexts/DashboardContext.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/contexts/DashboardContext.tsx): Real-time global dashboard state. Fetches `/api/dashboard` and `/api/sensor`, and subscribes to WebSocket events (`new_complaint`, `new_sensor_alert`, `sensor_resolved`, `complaint_updated`).
-- [`src/hooks/useWebSocket.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/hooks/useWebSocket.ts): Singleton WebSocket client with automatic exponential reconnect connecting to `ws://localhost:3000`.
-- [`src/components/`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/components/):
-  - `Navbar.tsx`: Desktop fixed header with branding, navigation links, language switcher, user status, logout.
-  - `MobileHeader.tsx`: Mobile viewport top header.
-  - `BottomNav.tsx`: Mobile viewport fixed bottom navigation bar.
-  - `ErrorBoundary.tsx`: React class error boundary.
-  - `ScrollReveal.tsx`, `TextReveal.tsx`, `MouseInteractions.tsx`, `CountUp.tsx`, `TricolorWaves.tsx`: Interactive micro-animations and patriotic styling.
-- [`src/pages/`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/pages/):
-  - `LoginPage.tsx`: Citizen and admin login portal using `src/lib/auth.ts`.
-  - `Home.tsx`: Landing page with statistics ticker, 4-step workflow guide, features grid, recent complaints feed, and action links.
-  - `SubmitComplaint.tsx`: Multilingual grievance filing. Step 1 (Personal details), Step 2 (Voice input via Web Speech API in Hindi/English, rule-based AI analyzer, mandatory photo attachment, dual-language legal complaint letter generator and downloader), Step 3 (Area and ward selection). Submits multipart FormData to `POST /api/complaint`.
-  - `TrackComplaint.tsx`: Public tracking portal by complaint reference number or citizen phone number. Displays status timeline, cluster size, and graph relationship view.
-  - `AdminDashboard.tsx`: Administrative operations console. Tabbed views for Complaints, Departments, Graph Hotspots, and Officer Assignments. Includes SLA escalation scanner and officer allocation modals.
-  - `HazardMap.tsx`: Interactive Leaflet map plotting clustered civic hazards, severity filters (Critical, High, Medium, Low), critical zones list, and hazard submission modal with image upload and GPS geo-tagging.
-  - `RTIDrafter.tsx`: 5-step statutory RTI application builder under Section 6(1). Calls `POST /api/drafter` with fallback to local legal serializer. Allows copy, print, and download.
-  - `IoTDashboard.tsx`: Streetlight telemetry monitoring console. Fetches `/api/sensor` and subscribes to WebSocket events. Displays active faults, device status, and real-time event logs.
-  - `GrievanceOfficer.tsx`: Dual-language grievance drafting assistant. Supports voice-to-text or raw text input, calling `POST /api/grievance` to generate Section 1 (Analysis Report), Section 2 (Formal English Draft), and Section 3 (Formal Hindi Draft).
-
-### 2.4 Mobile Application (`app/` & `lib/`)
-- [`app/_layout.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/app/_layout.tsx): Root layout with `GestureHandlerRootView`, `LangProvider`, `StatusBar`, and Expo Router Stack.
-- [`app/(tabs)/_layout.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/app/(tabs)/_layout.tsx): Mobile bottom tab bar configuring 6 tabs: Home (`index`), File (`submit`), Track (`track`), Hazards (`hazardmap`), RTI (`rti`), and Admin (`admin`).
-- [`app/(tabs)/index.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/app/(tabs)/index.tsx): Mobile home dashboard displaying metrics, how-it-works, features, and recent complaint cards.
-- [`app/(tabs)/submit.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/app/(tabs)/submit.tsx): Mobile complaint filing screen with speech-to-text simulation, rule-based AI analyzer, city/area selectors, and formal letter generator.
-- [`app/(tabs)/track.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/app/(tabs)/track.tsx): Mobile status tracking with visual timeline, cluster indicator, and Cypher-like relationship representation.
-- [`app/(tabs)/hazardmap.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/app/(tabs)/hazardmap.tsx): Custom SVG projected map rendering hazard clusters, GPS location tagging via `expo-location`, camera photo capture via `expo-image-picker`, and report modal.
-- [`app/(tabs)/rti.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/app/(tabs)/rti.tsx): 4-step mobile RTI wizard with Section 6(1) legal draft generation and clipboard copy.
-- [`app/(tabs)/admin.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/app/(tabs)/admin.tsx): Mobile admin view featuring `SimpleHeatMap`, summary statistics, and manual SLA escalation trigger.
-- [`app/components/SimpleHeatMap.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/app/components/SimpleHeatMap.tsx): Reusable SVG coordinate projection map component plotting complaint hotspots.
-- [`app/login.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/app/login.tsx): Citizen auth modal screen. **Broken due to missing `lib/supabase.ts`.**
-- [`app/admin-login.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/app/admin-login.tsx): Admin PIN authentication modal verifying password `jansetu2024` stored in `AsyncStorage`.
-- [`lib/locations.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/lib/locations.ts): Locality and ward dataset for mobile.
-- [`lib/i18n.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/lib/i18n.ts): Mobile translation dictionary (missing newly added web keys).
-- [`lib/langContext.tsx`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/lib/langContext.tsx): Mobile language context using `@react-native-async-storage/async-storage`.
-- [`lib/aiAnalyzer.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/lib/aiAnalyzer.ts): Client-side rule-based NLP analyzer for mobile.
-- [`lib/neo4j.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/lib/neo4j.ts): Mobile API client communicating with `EXPO_PUBLIC_NEO4J_PROXY_URL` using Supabase auth headers.
-
-### 2.5 IoT Edge Gateway (`IOT/`)
-- [`IOT/README.md`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/IOT/README.md): Documentation for the Arduino UNO Q streetlight monitoring edge gateway.
-- [`IOT/app.yaml`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/IOT/app.yaml): Arduino App descriptor.
-- [`IOT/python/main.py`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/IOT/python/main.py): Linux MPU Python agent. Polls MCU via `arduino.app_utils.Bridge.call("get_status")`. On `FAULT_CONFIRMED`, queues a `FAULT` event; on transition back to `NORMAL`, queues a `RESOLVED` event.
-- [`IOT/python/sender.py`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/IOT/python/sender.py): Resilient background worker thread managing an event queue with exponential backoff sending HTTPS POST payloads to the cloud.
-- [`IOT/python/config.py`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/IOT/python/config.py): Configuration loader reading `BACKEND_URL`, defaulting to `https://jansetu-multiverse.onrender.com/api/sensor`.
-- [`IOT/python/logger.py`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/IOT/python/logger.py): Configures stdout logging.
-- [`IOT/python/requirements.txt`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/IOT/python/requirements.txt): Declares `requests>=2.28.0`.
-- `iot/sketch/`: **Implemented and hardened.** Complete C++ Arduino firmware suite (`sketch.ino`, `pins.h`, `sensors.h/cpp`, `button.h/cpp`, `outputs.h/cpp`, `fsm.h/cpp`, `communication.h/cpp`, `test_firmware.cpp`, `README.md`). Fully tested and verified with native host unit test runner.
+### 2.1 Workspace Packages & Applications
+- [`apps/api/`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/api): Serverless Hono v4 backend engine running on Cloudflare Workers and Node.js (`@hono/node-server`). Enforces Zod schema validation, Better Auth RBAC, R2 presigned media uploads, statutory RTI Section 6(1) drafting, and IoT HMAC-SHA256 signature verification.
+- [`apps/web/`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/web): Single-page React 18 + Vite portal. Features bilingual internationalization (`react-i18next`), Leaflet clustered grievance and IoT maps (`react-leaflet` + `leaflet.markercluster`), real-time Ably tracking (`useAblySubscription`), and statutory RTI builder.
+- [`apps/mobile/`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/apps/mobile): Cross-platform Expo SDK 52 application powered by Expo Router and NativeWind. Implements offline-first SQLite outbox queuing, network state monitoring, image compression, location geo-tagging, and Better Auth authentication.
+- [`packages/db/`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/packages/db): Persistence layer utilizing Drizzle ORM and Neon serverless PostgreSQL with PostGIS spatial extensions (`geometry(Point, 4326)` and `geometry(MultiPolygon, 4326)`). Includes GiST spatial indexes and ward containment (`ST_Contains`) and proximity clustering (`ST_DWithin`).
+- [`packages/shared/`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/packages/shared): Shared domain logic containing canonical status transition state machines, SLA deadline calculators, Zod schemas, English/Hindi localization dictionaries, and municipal datasets.
+- [`iot/sketch/`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/iot/sketch): Arduino UNO Q MCU C++ firmware implementing rolling-average LDR sampling, hysteresis thresholding, 3-state failure FSM, tactile button debounce, 4s hardware watchdog timer, and RouterBridge RPC telemetry interface.
+- [`iot/python/`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/iot/python): Linux MPU edge gateway daemon. Manages local SQLite WAL outbox queue, exponential backoff retries, TLS verification, HMAC-SHA256 signed POST requests, periodic heartbeats, and end-to-end CLI simulator.
 
 ---
 
