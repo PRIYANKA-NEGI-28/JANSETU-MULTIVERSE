@@ -311,17 +311,14 @@ The repository root contains both Web and Expo configurations. Attempting to run
    - [`src/hooks/useWebSocket.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/src/hooks/useWebSocket.ts) (line 21): Hardcodes `ws://localhost:3000`.
    - [`vite.config.ts`](file:///Users/apple/Desktop/JANSETU-MULTIVERSE/vite.config.ts) (line 10): Proxy target hardcoded to `http://localhost:3000`.
 
-### 6.4 Git Index Bloat & Large Binaries (Hygiene Audit)
-1. **9,831 Tracked Files in `node_modules/` in Git Index**:
-   - The root `node_modules/` directory was committed to the repository index prior to commit `11b91e3`.
-   - Running `git ls-files node_modules | wc -l` confirms 9,831 tracked dependency files, cluttering the index and causing git operational slowdown.
-2. **Tracked Build Artifacts & Compiled Bytecode**:
-   - `expo-export-test/`: Entire test export directory is committed in git index, including a **6.3 MB compiled Hermes bytecode file** (`expo-export-test/bundles/android-1cb58cfb559ba79b5c21966a987efcf7.hbc`).
-   - `dist/`: Web production build output directory is tracked in git index.
-3. **Duplicate Large Media Assets**:
-   - Identical 1.15 MB static PNG banner files exist across `public/images/`, `dist/images/`, and `expo-export-test/images/`.
-4. **Git LFS Model Pointers**:
-   - `jansetu-backend/ai/models/qwen/Qwen3-0.6B-Q4_0.gguf` (134 bytes) and `jansetu-backend/ai/models/yolo/yolov11_det.dlc` (133 bytes) are Git LFS pointer stubs lacking backing model storage.
+### 6.4 Git Index Bloat & Large Binaries (Hygiene Audit) — RESOLVED
+1. **Purged Tracked Files in `node_modules/` in Git Index**:
+   - The root `node_modules/` directory, along with legacy build artifacts (`dist/`, `expo-export-test/` including compiled Hermes bytecode), and unmigrated legacy directories (`jansetu-backend/`, `src/`, `app/`, `lib/`, `IOT/`) were purged from the git index via `git rm -r --cached`.
+   - Running `git ls-files | grep node_modules` confirms **0** tracked dependency files.
+   - Root `.gitignore` has been updated with explicit rules preventing re-tracking of `node_modules/`, `dist/`, `expo-export-test/`, and legacy root directories.
+2. **Canonical Monorepo Layout Isolated**:
+   - Active production code resides exclusively within `apps/api`, `apps/web`, `apps/mobile`, `packages/shared`, `packages/db`, and canonical `iot/` (`iot/sketch` and `iot/python`).
+
 
 ### 6.5 Secrets Requiring Immediate User Rotation
 1. **Supabase Project Credentials**:

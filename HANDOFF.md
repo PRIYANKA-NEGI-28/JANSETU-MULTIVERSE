@@ -29,8 +29,7 @@ Use this document alongside [`PROJECT_STATE.md`](file:///Users/apple/Desktop/JAN
 | **Multimodal (Gemini)** | Gemini API listed in environment variables | **Zero code exists**. No imports or SDK setup. | Disregard environment variable or integrate only if specifically requested. |
 | **IoT Firmware** | Arduino UNO Q C++ firmware under `sketch/` | **Fully Implemented & Hardened under `iot/sketch/`** | Hardened FSM with countdown, rolling LDR, hysteresis, monotonic seq, debouncing, 4s WDT, RouterBridge RPC structured telemetry. Verified with native C++ test suite. |
 | **Credentials & Secrets** | Production-ready secret isolation | **Live Supabase credentials leaked in commit `bd30e4149a2`**; hardcoded passwords in `app/admin-login.tsx` (`jansetu2024`) and `src/lib/auth.ts` (`123456`). | Immediate key revocation in Supabase console; externalize via environment variables. |
-| **Git Index Hygiene** | Standard clean repository | **9,831 files in `node_modules/`**, `dist/`, and `expo-export-test/` (including 6.3MB `.hbc` binary) tracked in git index. | Untrack cached build/dependency artifacts via `git rm -r --cached`. |
-
+| **Git Index Hygiene** | Standard clean repository | **RESOLVED**: Purged 9,288 tracked files (`node_modules/`, `dist/`, `expo-export-test/`, legacy roots). `git ls-files \| grep node_modules` is empty. | Verified clean index; `.gitignore` hardened. |
 ---
 
 ## 3. Critical Bugs & Immediate Fix Priority
@@ -38,13 +37,10 @@ Use this document alongside [`PROJECT_STATE.md`](file:///Users/apple/Desktop/JAN
 Before introducing any new features, the following high-priority bugs must be addressed in subsequent refactoring phases:
 
 ### Phase 0: Security & Git Index Remediation (Immediate Pre-Migration Step)
-1. **Untrack Committed Node Modules & Build Artifacts from Git Index**:
-   ```bash
-   git rm -r --cached node_modules
-   git rm -r --cached dist
-   git rm -r --cached expo-export-test
-   git commit -m "chore(hygiene): untrack node_modules, dist, and expo-export-test artifacts"
-   ```
+1. **[COMPLETED] Untrack Committed Node Modules & Build Artifacts from Git Index**:
+   - Executed: `git rm -r --cached node_modules dist expo-export-test jansetu-backend src app lib IOT`
+   - Verified: `git ls-files | grep node_modules` returns 0 results.
+   - Committed with: `chore(hygiene): purge committed build artifacts and legacy roots from git index`
 2. **Rotate Leaked Supabase Credentials**:
    - Invalidate/rotate the Anon Public Key and Service Role Key associated with `gzuvwqosslryjcldzoyl.supabase.co` in the Supabase management console.
 3. **Externalize Hardcoded Passwords**:
